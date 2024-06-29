@@ -1,10 +1,10 @@
 #include "../include.h"
 
 #ifdef BYD_KOSTAL_RS485
-#include "KOSTAL_RS485.h"
+#include "KOSTAL-RS485.h"
 #endif
 
- KOSTAL_FRAMEHEADER[5]= {0x62,0xFF,0x02,0xFF,0x29}
+static const byte KOSTAL_FRAMEHEADER[5]= {0x62,0xFF,0x02,0xFF,0x29};
 
 // KOSTAL_FRAME1[10]={0x09,0x62,0xFF,0x02,0xFF,0x29,0x4A,0x08,0x23,0x00};
 // KOSTAL_FRAME2[10]={0x09,0x62,0xFF,0x02,0xFF,0x29,0x4A,0x04,0x27,0x00};
@@ -14,22 +14,27 @@ byte RS485_RXFRAME[10];
 size_t RS485_RECEIVEDBYTES;
 
 boolean check_kostal_frame_crc() {
-    unsigned int sum = 0;
-    for (int i = 1; i < 7; ++i) {
-      sum += RS485_RXFRAME[i]; 
-      }
-    }
-  return (if (~sum+1)&0xff) == RS485_RXFRAME[8]));
+  unsigned int sum = 0;
+  for (int i = 1; i < 7; ++i) {
+    sum += RS485_RXFRAME[i]; 
   }
-
+  if( (~sum+1)&0xff == RS485_RXFRAME[8] )
+    {
+    return(true);
+    }
+  else
+    {
+    return(false);
+    }
+  }
   
 void init_kostal_byd(){
   }
 
 
 void run_kostal_byd(){
-  if Serial2.available() {
-    RS485_RECEIVEDBYTES=Serial.readBytesUntil(0x00, RS485_RXFRAME, 10)    
+  if (Serial2.available()) {
+    RS485_RECEIVEDBYTES=Serial.readBytesUntil(0x00, RS485_RXFRAME, 10)    ;
     // frame length 10 bytes and starts with 0x09
     if((RS485_RECEIVEDBYTES == 10) && (RS485_RXFRAME[0] == 0x09)) {
       if(check_kostal_frame_crc())

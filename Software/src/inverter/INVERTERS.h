@@ -36,7 +36,7 @@
 #endif
 
 #ifdef BYD_KOSTAL_RS485
-#include KOSTAL-RS485.h
+#include "KOSTAL-RS485.h"
 #endif
 
 #ifdef SERIAL_LINK_TRANSMITTER

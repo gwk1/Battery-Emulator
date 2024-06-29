@@ -143,6 +143,10 @@ void setup() {
 
   init_battery();
 
+#ifdef BYD_KOSTAL_RS485
+  init_kostal_byd();
+#endif
+
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
 
@@ -211,6 +215,9 @@ void core_loop(void* task_time_us) {
 #endif
 #ifdef DUAL_CAN
     receive_can2();  // Receive CAN messages on CAN2. Runs as fast as possible
+#endif
+#ifdef BYD_KOSTAL_RS485
+    run_kostal_byd();
 #endif
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
     runSerialDataLink();
@@ -452,7 +459,9 @@ void init_rs485() {
   pinMode(PIN_5V_EN, OUTPUT);
   digitalWrite(PIN_5V_EN, HIGH);
 #endif
-
+#ifdef BYD_KOSTAL_RS485
+  Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+#endif
 #ifdef MODBUS_INVERTER_SELECTED
 #ifdef BYD_MODBUS
   // Init Static data to the RTU Modbus
