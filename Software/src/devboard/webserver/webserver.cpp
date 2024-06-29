@@ -374,12 +374,24 @@ String processor(const String& var) {
 
     // Show version number
     content += "<h4>Software: " + String(version_number) + "</h4>";
+// Show hardware used:
+#ifdef HW_LILYGO
+    content += "<h4>Hardware: LilyGo T-CAN485</h4>";
+#endif
+#ifdef HW_STARK
+    content += "<h4>Hardware: Stark CMR Module</h4>";
+#endif
     content += "<h4>Uptime: " + uptime_formatter::getUptime() + "</h4>";
 #ifdef FUNCTION_TIME_MEASUREMENT
     // Load information
     content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
     content += "<h4>Core task max load last 10 s: " + String(datalayer.system.status.core_task_10s_max_us) + " us</h4>";
-    content += "<h4>MQTT task max load last 10 s: " + String(datalayer.system.status.mqtt_task_10s_max_us) + " us</h4>";
+    content +=
+        "<h4>MQTT function (MQTT task) max load last 10 s: " + String(datalayer.system.status.mqtt_task_10s_max_us) +
+        " us</h4>";
+    content +=
+        "<h4>WIFI function (MQTT task) max load last 10 s: " + String(datalayer.system.status.wifi_task_10s_max_us) +
+        " us</h4>";
     content +=
         "<h4>loop() task max load last 10 s: " + String(datalayer.system.status.loop_task_10s_max_us) + " us</h4>";
     content += "<h4>Max load @ worst case execution of core task:</h4>";
@@ -387,7 +399,7 @@ String processor(const String& var) {
     content += "<h4>5s function timing: " + String(datalayer.system.status.time_snap_5s_us) + " us</h4>";
     content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
     content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
-    content += "<h4>Wifi and OTA function timing: " + String(datalayer.system.status.time_snap_wifi_us) + " us</h4>";
+    content += "<h4>OTA function timing: " + String(datalayer.system.status.time_snap_ota_us) + " us</h4>";
 #endif
 
     wl_status_t status = WiFi.status();
@@ -395,9 +407,8 @@ String processor(const String& var) {
     content += "<h4>SSID: " + String(ssid) + "</h4>";
     if (status == WL_CONNECTED) {
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
-      // Get and display the signal strength (RSSI)
-      content += "<h4>Signal Strength: " + String(WiFi.RSSI()) + " dBm</h4>";
-      content += "<h4>Channel: " + String(WiFi.channel()) + "</h4>";
+      // Get and display the signal strength (RSSI) and channel
+      content += "<h4>Signal strength: " + String(WiFi.RSSI()) + " dBm, at channel " + String(WiFi.channel()) + "</h4>";
     } else {
       content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
     }
@@ -439,6 +450,9 @@ String processor(const String& var) {
 #ifdef BMW_I3_BATTERY
     content += "BMW i3";
 #endif
+#ifdef BYD_ATTO_3_BATTERY
+    content += "BYD Atto 3";
+#endif
 #ifdef CHADEMO_BATTERY
     content += "Chademo V2X mode";
 #endif
@@ -460,8 +474,11 @@ String processor(const String& var) {
 #ifdef RENAULT_KANGOO_BATTERY
     content += "Renault Kangoo";
 #endif
-#ifdef RENAULT_ZOE_BATTERY
-    content += "Renault Zoe";
+#ifdef RENAULT_ZOE_GEN1_BATTERY
+    content += "Renault Zoe Gen1 22/40";
+#endif
+#ifdef RENAULT_ZOE_GEN2_BATTERY
+    content += "Renault Zoe Gen2 50";
 #endif
 #ifdef SERIAL_LINK_RECEIVER
     content += "Serial link to another LilyGo board";

@@ -9,6 +9,7 @@
 
 /* Select battery used */
 //#define BMW_I3_BATTERY
+//#define BYD_ATTO_3_BATTERY
 //#define CHADEMO_BATTERY	//NOTE: inherently enables CONTACTOR_CONTROL below
 //#define IMIEV_CZERO_ION_BATTERY
 //#define KIA_HYUNDAI_64_BATTERY
@@ -17,7 +18,8 @@
 //#define NISSAN_LEAF_BATTERY
 //#define PYLON_BATTERY
 //#define RENAULT_KANGOO_BATTERY
-//#define RENAULT_ZOE_BATTERY
+//#define RENAULT_ZOE_GEN1_BATTERY
+//#define RENAULT_ZOE_GEN2_BATTERY
 //#define SANTA_FE_PHEV_BATTERY
 //#define TESLA_MODEL_3_BATTERY
 //#define VOLVO_SPA_BATTERY
@@ -54,8 +56,6 @@
 
 /* MQTT options */
 // #define MQTT  // Enable this line to enable MQTT
-#define MQTT_SUBSCRIPTIONS \
-  { "my/topic/abc", "my/other/topic" }
 #define MQTT_SERVER "192.168.xxx.yyy"
 #define MQTT_PORT 1883
 
