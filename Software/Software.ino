@@ -1,3 +1,4 @@
+
 /* Do not change any code below this line unless you are sure what you are doing */
 /* Only change battery specific settings in "USER_SETTINGS.h" */
 
@@ -460,7 +461,7 @@ void init_rs485() {
   digitalWrite(PIN_5V_EN, HIGH);
 #endif
 #ifdef BYD_KOSTAL_RS485
-  Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+  Serial2.begin(57600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
 #endif
 #ifdef MODBUS_INVERTER_SELECTED
 #ifdef BYD_MODBUS
@@ -722,6 +723,11 @@ void update_values_inverter() {
 #ifdef MODBUS_INVERTER_SELECTED
   update_modbus_registers_inverter();
 #endif
+
+#ifdef BYD_KOSTAL_RS485
+  update_values_kostal_byd();
+#endif
+
 }
 
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
