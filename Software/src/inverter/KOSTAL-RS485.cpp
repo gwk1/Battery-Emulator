@@ -35,40 +35,40 @@ struct LongFrame {
               };
 
 
-
 union LongFrameC {
              LongFrame     FrameIn;
              byte          Frameout[64];
              };
 
-
-
 LongFrame frame2;
-
 
 byte frame1[40]={0x06,0xE2,0xFF,0x02,0xFF,0x29,
              0x01,0x08,0x80,0x43,     // 256.063 Max Charge?
              0xE4,0x70,0x8A,0x5C,
-             0xB5,0x02,0xD3,0x01,   
+             0xB5,0x02,0xD3,0x01,
              0x01,0x05,0xC8,0x41,     // 25.0024  TEMP??
-             0xC2,0x18,0x01,0x03,   
-             0x59,0x42,0x01,0x01,     
+             0xC2,0x18,0x01,0x03,
+             0x59,0x42,0x01,0x01,
              0x01,0x02,0x05,0x02,
              0xA0,0x01,0x01,0x02,
              0x4D,0x00};
 
-
-
-
 byte RS485_RXFRAME[10];
 size_t RS485_RECEIVEDBYTES;
+
+byte calculate_2s_crc(byte *lfc, int lastbyte) {
+  unsigned int sum = 0;
+  for (int i = 1; i < lastbyte; ++i) {
+    sum += lfc[i];
+    }
+  return((byte)(~sum&+1)+0xff);
+}
 
 boolean check_kostal_frame_crc() {
   unsigned int sum = 0;
   for (int i = 1; i < 8; ++i) {
-    sum += RS485_RXFRAME[i]; 
+    sum += RS485_RXFRAME[i];
     }
-   
 
 if( ((~sum+1)&0xff) == (RS485_RXFRAME[8]&0xff) )
     {
@@ -79,7 +79,6 @@ if( ((~sum+1)&0xff) == (RS485_RXFRAME[8]&0xff) )
     return(false);
     }
   }
-  
 
 void init_kostal_byd()
   {
@@ -105,7 +104,6 @@ void init_kostal_byd()
   frame2.endbyte = 0x00;
   }
 
-
 byte incomingindex=0;
 
 void run_kostal_byd(){
@@ -114,31 +112,26 @@ void run_kostal_byd(){
       Serial.print(RS485_RXFRAME[incomingindex], HEX);
       Serial.print(":");
     incomingindex++;
-    if(  RS485_RXFRAME[incomingindex] == 0x00 )
+    //if(  RS485_RXFRAME[incomingindex] == 0x00 )
 
-
-//    RS485_RECEIVEDBYTES=Serial.readBytesUntil(0x00, RS485_RXFRAME, 10)    ;
-
-    if((incomingindex == 10) && (RS485_RXFRAME[0] == 0x09)) {
-    Serial.println("\n");
+    if((incomingindex == 10) && (RS485_RXFRAME[0] == 0x09) ) {
+      Serial.println("\n");
 #ifdef DEBUG_KOSTAL_RS485_DATA
-    Serial.print("RX: ");
-    for (int i = 0;  i < 10; i++) {
-       Serial.print(RS485_RXFRAME[i], HEX);
-       Serial.print(" ");
-       }
-    Serial.println("");
+      Serial.print("RX: ");
+      for (int i = 0;  i < 10; i++) {
+         Serial.print(RS485_RXFRAME[i], HEX);
+         Serial.print(" ");
+         }
+      Serial.println("");
 #endif
 
-    // frame length 10 bytes and starts with 0x09
-//    if((RS485_RECEIVEDBYTES == 10) && (RS485_RXFRAME[0] == 0x09)) {
       incomingindex=0;
       if(check_kostal_frame_crc())
         {
         boolean notframe=0;
         for (int i = 0;  i < 5; i++)
           {
-          if( RS485_RXFRAME[i+1] != KOSTAL_FRAMEHEADER[i] ) 
+          if( RS485_RXFRAME[i+1] != KOSTAL_FRAMEHEADER[i] )
             {
             notframe=true;
             break;
@@ -147,39 +140,31 @@ void run_kostal_byd(){
         if (!notframe && (RS485_RXFRAME[6]==0x4A) && (RS485_RXFRAME[7]==0x08))
           {
           Serial2.write(frame1,40);
-//          Serial2.flush();
           }
         if (!notframe && (RS485_RXFRAME[6]==0x4A) && (RS485_RXFRAME[7]==0x04 ))
           {
             LongFrameC tmpframe;
             tmpframe.FrameIn=frame2;
-            for(int i=1; i < 63; i++) 
+            for(int i=1; i < 63; i++)
+              {
+              if(tmpframe.Frameout[i]==0x00) {
+                 tmpframe.Frameout[i]=0x01;
+              }
+              Serial.print(tmpframe.Frameout[i], HEX);
+              }
+            Serial.println();
+            tmpframe.Frameout[62]=calculate_2s_crc(tmpframe.Frameout,62)+0xc1;
+            for(int i=1; i < 63; i++)
               {
               Serial.print(tmpframe.Frameout[i], HEX);
-              Serial.print(":");
-              }            
-
+              }
             Serial.println();
-
-//          Serial2.write(frame1,40);
-//          Serial2.flush();
+            Serial2.write(tmpfrane.Frameout,64);
           }
         }
-#ifdef DEBUG_KOSTAL_RS485_DATA
-      else {
-        Serial.println("CRC error ");
-        }
-#endif
       }
     }
   }
-
-
-
-
-
-
-
 
 void update_values_kostal_byd(){
   Serial.println("Update values");
