@@ -35,6 +35,10 @@
 #include "SOLAX-CAN.h"
 #endif
 
+#ifdef BYD_KOSTAL_RS485
+#include "KOSTAL-RS485.h"
+#endif
+
 #ifdef SERIAL_LINK_TRANSMITTER
 #include "SERIAL-LINK-TRANSMITTER-INVERTER.h"
 #endif
@@ -49,5 +53,6 @@ void send_can_inverter();
 #ifdef MODBUS_INVERTER_SELECTED
 void update_modbus_registers_inverter();
 #endif
+
 
 #endif
