@@ -110,7 +110,11 @@ void send_kostal(byte *arr,int alen)
   Serial.print("TX: ");
   for (int i = 0;  i < alen; i++) 
     {
-    Serial.print(frame1[i], HEX);
+    if (arr[i] < 0x10)
+      {
+      Serial.print("0")
+      }
+    Serial.print(arr[i], HEX);
     Serial.print(" ");
     }
   Serial.println("\n");
@@ -185,7 +189,6 @@ void run_kostal_byd()
 
           if (!notheaderB && (RS485_RXFRAME[6]==0x5E) && (RS485_RXFRAME[7]==0xFF))  // "frame B1", maybe reset request, seen after battery power on/partial data
             {
-//            Serial2.write(frameB1,10);
             send_kostal(frameB1,10);
             Serial2.flush();
             delay(1);
@@ -194,7 +197,6 @@ void run_kostal_byd()
             
           if (!notheaderA && (RS485_RXFRAME[6]==0x4A) && (RS485_RXFRAME[7]==0x08))  // "frame 1"
             {
-//            Serial2.write(frame1,40);
             send_kostal(frame1,40);
             }
           if (!notheaderA && (RS485_RXFRAME[6]==0x4A) && (RS485_RXFRAME[7]==0x04 )) // "frame 2"
@@ -208,12 +210,10 @@ void run_kostal_byd()
                   }
                 }
               tmpframe[62]=calculate_longframe_crc(tmpframe,62);
-//              Serial2.write(tmpframe,64);
               send_kostal(tmpframe,64);
             }
           if (!notheaderA && (RS485_RXFRAME[6]==0x53) && (RS485_RXFRAME[7]==0x03 )) // "frame 3"
             {
-//            Serial2.write(frame3,9);
             send_kostal(frame3,9);
             }
           }
