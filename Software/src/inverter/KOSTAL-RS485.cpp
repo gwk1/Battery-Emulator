@@ -112,7 +112,7 @@ void send_kostal(byte *arr,int alen)
     {
     if (arr[i] < 0x10)
       {
-      Serial.print("0")
+      Serial.print("0");
       }
     Serial.print(arr[i], HEX);
     Serial.print(" ");
