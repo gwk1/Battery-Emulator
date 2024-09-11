@@ -6,7 +6,7 @@
 
 // #define INCLUDE_EVENTS_TEST  // Enable to run an event test loop, see events_test_on_target.cpp
 
-#define EE_MAGIC_HEADER_VALUE 0x0007  // 0x0000 to 0xFFFF
+#define EE_MAGIC_HEADER_VALUE 0x0011  // 0x0000 to 0xFFFF
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -29,6 +29,7 @@
   XX(EVENT_CANFD_INIT_FAILURE)          \
   XX(EVENT_CAN_OVERRUN)                 \
   XX(EVENT_CAN_RX_FAILURE)              \
+  XX(EVENT_CAN2_RX_FAILURE)             \
   XX(EVENT_CANFD_RX_FAILURE)            \
   XX(EVENT_CAN_RX_WARNING)              \
   XX(EVENT_CAN_TX_FAILURE)              \
@@ -48,13 +49,17 @@
   XX(EVENT_BATTERY_OVERHEAT)            \
   XX(EVENT_BATTERY_OVERVOLTAGE)         \
   XX(EVENT_BATTERY_UNDERVOLTAGE)        \
+  XX(EVENT_BATTERY_ISOLATION)           \
   XX(EVENT_BATTERY_REQUESTS_HEAT)       \
   XX(EVENT_BATTERY_WARMED_UP)           \
-  XX(EVENT_LOW_SOH)                     \
+  XX(EVENT_VOLTAGE_DIFFERENCE)          \
+  XX(EVENT_SOH_DIFFERENCE)              \
+  XX(EVENT_SOH_LOW)                     \
   XX(EVENT_HVIL_FAILURE)                \
   XX(EVENT_PRECHARGE_FAILURE)           \
   XX(EVENT_INTERNAL_OPEN_FAULT)         \
   XX(EVENT_INVERTER_OPEN_CONTACTOR)     \
+  XX(EVENT_INTERFACE_MISSING)           \
   XX(EVENT_MODBUS_INVERTER_MISSING)     \
   XX(EVENT_ERROR_OPEN_CONTACTOR)        \
   XX(EVENT_CELL_UNDER_VOLTAGE)          \
@@ -116,6 +121,7 @@ typedef struct {
   EVENTS_LEVEL_TYPE level;  // Event level, i.e. ERROR/WARNING...
   EVENTS_STATE_TYPE state;  // Event state, i.e. ACTIVE/INACTIVE...
   bool log;
+  bool MQTTpublished;
 } EVENTS_STRUCT_TYPE;
 
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
@@ -130,6 +136,7 @@ void init_events(void);
 void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data);
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data);
 void clear_event(EVENTS_ENUM_TYPE event);
+void set_event_MQTTpublished(EVENTS_ENUM_TYPE event);
 
 const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event);
 

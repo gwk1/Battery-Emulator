@@ -52,6 +52,9 @@
 #define NEGATIVE_CONTACTOR_PIN 33
 #define PRECHARGE_PIN 25
 
+// SMA CAN contactor pins
+#define INVERTER_CONTACTOR_ENABLE_PIN 5
+
 // SD card
 #define SD_MISO_PIN 2
 #define SD_MOSI_PIN 15
@@ -72,6 +75,12 @@
 #ifdef CHADEMO_BATTERY
 #ifdef DUAL_CAN
 #error CHADEMO and DUAL_CAN cannot coexist due to overlapping GPIO pin usage
+#endif
+#endif
+
+#ifdef BMW_I3_BATTERY
+#ifdef CONTACTOR_CONTROL
+#error GPIO PIN 25 cannot be used for both BMWi3 Wakeup and contactor control. Disable CONTACTOR_CONTROL
 #endif
 #endif
 

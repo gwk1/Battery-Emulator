@@ -104,6 +104,13 @@ typedef struct {
 } DATALAYER_BATTERY_TYPE;
 
 typedef struct {
+  /** measured voltage in deciVolts. 4200 = 420.0 V */
+  uint16_t measured_voltage_dV = 0;
+  /** measured amperage in deciAmperes. 300 = 30.0 A */
+  uint16_t measured_amperage_dA = 0;
+} DATALAYER_SHUNT_TYPE;
+
+typedef struct {
   // TODO
 } DATALAYER_SYSTEM_INFO_TYPE;
 
@@ -154,6 +161,8 @@ typedef struct {
 #endif
   /** True if the battery allows for the contactors to close */
   bool battery_allows_contactor_closing = false;
+  /** True if the second battery allows for the contactors to close */
+  bool battery2_allows_contactor_closing = false;
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
 } DATALAYER_SYSTEM_STATUS_TYPE;
@@ -170,6 +179,8 @@ typedef struct {
 class DataLayer {
  public:
   DATALAYER_BATTERY_TYPE battery;
+  DATALAYER_BATTERY_TYPE battery2;
+  DATALAYER_SHUNT_TYPE shunt;
   DATALAYER_SYSTEM_TYPE system;
 };
 

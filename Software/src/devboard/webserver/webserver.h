@@ -18,11 +18,14 @@
 
 extern const char* version_number;  // The current software version, shown on webserver
 
-extern const char* ssid;
-extern const char* password;
+#include <string>
+extern std::string ssid;
+extern std::string password;
 extern const uint8_t wifi_channel;
 extern const char* ssidAP;
 extern const char* passwordAP;
+extern const char* http_username;
+extern const char* http_password;
 
 // Common charger parameters
 extern float charger_stat_HVcur;
@@ -53,6 +56,7 @@ void init_webserver();
  */
 void wifi_monitor();
 
+#ifdef WIFIAP
 /**
  * @brief Initialization function that creates a WiFi Access Point.
  *
@@ -61,6 +65,7 @@ void wifi_monitor();
  * @return void
  */
 void init_WiFi_AP();
+#endif  // WIFIAP
 
 /**
  * @brief Initialization function that connects to an existing network.
