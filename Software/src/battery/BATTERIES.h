@@ -6,12 +6,21 @@
 #include "BMW-I3-BATTERY.h"
 #endif
 
+#ifdef BMW_IX_BATTERY
+#include "BMW-IX-BATTERY.h"
+#endif
+
 #ifdef BYD_ATTO_3_BATTERY
 #include "BYD-ATTO-3-BATTERY.h"
 #endif
 
+#ifdef CELLPOWER_BMS
+#include "CELLPOWER-BMS.h"
+#endif
+
 #ifdef CHADEMO_BATTERY
 #include "CHADEMO-BATTERY.h"
+#include "CHADEMO-SHUNTS.h"
 #endif
 
 #ifdef IMIEV_CZERO_ION_BATTERY
@@ -46,8 +55,20 @@
 #include "PYLON-BATTERY.h"
 #endif
 
+#ifdef RJXZS_BMS
+#include "RJXZS-BMS.h"
+#endif
+
+#ifdef RANGE_ROVER_PHEV_BATTERY
+#include "RANGE-ROVER-PHEV-BATTERY.h"
+#endif
+
 #ifdef RENAULT_KANGOO_BATTERY
 #include "RENAULT-KANGOO-BATTERY.h"
+#endif
+
+#ifdef RENAULT_TWIZY_BATTERY
+#include "RENAULT-TWIZY.h"
 #endif
 
 #ifdef RENAULT_ZOE_GEN1_BATTERY
@@ -62,8 +83,7 @@
 #include "SANTA-FE-PHEV-BATTERY.h"
 #endif
 
-#if defined(TESLA_MODEL_S_BATTERY) || defined(TESLA_MODEL_3_BATTERY) || defined(TESLA_MODEL_X_BATTERY) || \
-    defined(TESLA_MODEL_Y_BATTERY)
+#if defined(TESLA_MODEL_SX_BATTERY) || defined(TESLA_MODEL_3Y_BATTERY)
 #define TESLA_BATTERY
 #include "TESLA-BATTERY.h"
 #endif
