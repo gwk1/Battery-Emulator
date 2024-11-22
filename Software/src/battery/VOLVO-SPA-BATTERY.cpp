@@ -2,16 +2,11 @@
 #ifdef VOLVO_SPA_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "VOLVO-SPA-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
-
-#define MAX_CELL_VOLTAGE 4210  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE 2700  //Battery is put into emergency stop if one cell goes below this value
 
 static float BATT_U = 0;                 //0x3A
 static float MAX_U = 0;                  //0x3A
@@ -24,8 +19,8 @@ static float BATT_T_MIN = 0;             //0x413
 static float BATT_T_AVG = 0;             //0x413
 static uint16_t SOC_BMS = 0;             //0X37D
 static uint16_t SOC_CALC = 0;
-static uint16_t CELL_U_MAX = 0;             //0x37D
-static uint16_t CELL_U_MIN = 0;             //0x37D
+static uint16_t CELL_U_MAX = 3700;          //0x37D
+static uint16_t CELL_U_MIN = 3700;          //0x37D
 static uint8_t CELL_ID_U_MAX = 0;           //0x37D
 static uint16_t HvBattPwrLimDchaSoft = 0;   //0x369
 static uint8_t batteryModuleNumber = 0x10;  // First battery module
@@ -36,42 +31,32 @@ static uint8_t cellcounter = 0;
 static uint32_t remaining_capacity = 0;
 static uint16_t cell_voltages[108];  //array with all the cellvoltages
 
-CAN_frame_t VOLVO_536 = {.FIR = {.B =
-                                     {
-                                         .DLC = 8,
-                                         .FF = CAN_frame_std,
-                                     }},
-                         .MsgID = 0x536,
-                         .data = {0x00, 0x40, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame
-CAN_frame_t VOLVO_372 = {
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x372,
+CAN_frame VOLVO_536 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x536,
+                       .data = {0x00, 0x40, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame
+CAN_frame VOLVO_372 = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x372,
     .data = {0x00, 0xA6, 0x07, 0x14, 0x04, 0x00, 0x80, 0x00}};  //Ambient Temp -->>VERIFY this data content!!!<<--
-CAN_frame_t VOLVO_CELL_U_Req = {.FIR = {.B =
-                                            {
-                                                .DLC = 8,
-                                                .FF = CAN_frame_std,
-                                            }},
-                                .MsgID = 0x735,
-                                .data = {0x03, 0x22, 0x4B, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Cell voltage request frame
-CAN_frame_t VOLVO_FlowControl = {.FIR = {.B =
-                                             {
-                                                 .DLC = 8,
-                                                 .FF = CAN_frame_std,
-                                             }},
-                                 .MsgID = 0x735,
-                                 .data = {0x30, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Flowcontrol
-CAN_frame_t VOLVO_SOH_Req = {.FIR = {.B =
-                                         {
-                                             .DLC = 8,
-                                             .FF = CAN_frame_std,
-                                         }},
-                             .MsgID = 0x735,
-                             .data = {0x03, 0x22, 0x49, 0x6D, 0x00, 0x00, 0x00, 0x00}};  //Battery SOH request frame
+CAN_frame VOLVO_CELL_U_Req = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x735,
+                              .data = {0x03, 0x22, 0x4B, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Cell voltage request frame
+CAN_frame VOLVO_FlowControl = {.FD = false,
+                               .ext_ID = false,
+                               .DLC = 8,
+                               .ID = 0x735,
+                               .data = {0x30, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Flowcontrol
+CAN_frame VOLVO_SOH_Req = {.FD = false,
+                           .ext_ID = false,
+                           .DLC = 8,
+                           .ID = 0x735,
+                           .data = {0x03, 0x22, 0x49, 0x6D, 0x00, 0x00, 0x00, 0x00}};  //Battery SOH request frame
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
   uint8_t cnt = 0;
@@ -98,7 +83,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //datalayer.battery.status.max_discharge_power_W = HvBattPwrLimDchaSoft * 1000;	// Use power limit reported from BMS, not trusted ATM
   datalayer.battery.status.max_discharge_power_W = 30000;
   datalayer.battery.status.max_charge_power_W = 30000;
-  datalayer.battery.status.active_power_W = (BATT_U)*BATT_I;
   datalayer.battery.status.temperature_min_dC = BATT_T_MIN;
   datalayer.battery.status.temperature_max_dC = BATT_T_MAX;
 
@@ -156,9 +140,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     case 0x3A:
       if ((rx_frame.data.u8[6] & 0x80) == 0x80)
         BATT_I = (0 - ((((rx_frame.data.u8[6] & 0x7F) * 256.0 + rx_frame.data.u8[7]) * 0.1) - 1638));
@@ -279,7 +263,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
-        ESP32Can.CANWriteFrame(&VOLVO_FlowControl);  // Send flow control
+        transmit_can(&VOLVO_FlowControl, can_config.battery);  // Send flow control
         rxConsecutiveFrames = 1;
       } else if ((rx_frame.data.u8[0] == 0x21) && (rxConsecutiveFrames == 1)) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
@@ -289,7 +273,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         if (batteryModuleNumber <= 0x2A)  // Run until last pack is read
         {
           VOLVO_CELL_U_Req.data.u8[3] = batteryModuleNumber++;
-          ESP32Can.CANWriteFrame(&VOLVO_CELL_U_Req);  //Send cell voltage read request for next module
+          transmit_can(&VOLVO_CELL_U_Req, can_config.battery);  //Send cell voltage read request for next module
         } else {
           min_max_voltage[0] = 9999;
           min_max_voltage[1] = 0;
@@ -300,13 +284,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
               min_max_voltage[1] = cell_voltages[cellcounter];
           }
 
-          if (min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
-            set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-          }
-          if (min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
-            set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-          }
-          ESP32Can.CANWriteFrame(&VOLVO_SOH_Req);  //Send SOH read request
+          transmit_can(&VOLVO_SOH_Req, can_config.battery);  //Send SOH read request
         }
         rxConsecutiveFrames = 0;
       }
@@ -321,7 +299,7 @@ void readCellVoltages() {
   batteryModuleNumber = 0x10;
   rxConsecutiveFrames = 0;
   VOLVO_CELL_U_Req.data.u8[3] = batteryModuleNumber++;
-  ESP32Can.CANWriteFrame(&VOLVO_CELL_U_Req);  //Send cell voltage read request for first module
+  transmit_can(&VOLVO_CELL_U_Req, can_config.battery);  //Send cell voltage read request for first module
 }
 
 void send_can_battery() {
@@ -336,8 +314,8 @@ void send_can_battery() {
     }
     previousMillis100 = currentMillis;
 
-    ESP32Can.CANWriteFrame(&VOLVO_536);  //Send 0x536 Network managing frame to keep BMS alive
-    ESP32Can.CANWriteFrame(&VOLVO_372);  //Send 0x372 ECMAmbientTempCalculated
+    transmit_can(&VOLVO_536, can_config.battery);  //Send 0x536 Network managing frame to keep BMS alive
+    transmit_can(&VOLVO_372, can_config.battery);  //Send 0x372 ECMAmbientTempCalculated
 
     if (datalayer.battery.status.bms_status == ACTIVE) {
       datalayer.system.status.battery_allows_contactor_closing = true;
@@ -354,13 +332,13 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Volvo SPA XC40 Recharge / Polestar2 78kWh battery selected");
-#endif
-
+  strncpy(datalayer.system.info.battery_protocol, "Volvo / Polestar 78kWh battery", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 108;
-  datalayer.battery.info.max_design_voltage_dV =
-      4540;  // 454.0V, over this, charging is not possible (goes into forced discharge)
-  datalayer.battery.info.min_design_voltage_dV = 2938;  // 293.8V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 #endif

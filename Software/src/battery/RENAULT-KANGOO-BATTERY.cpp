@@ -2,8 +2,6 @@
 #ifdef RENAULT_KANGOO_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "RENAULT-KANGOO-BATTERY.h"
 
 /* TODO:
@@ -48,31 +46,25 @@ static uint8_t LB_MaxInput_kW = 0;
 static uint8_t LB_MaxOutput_kW = 0;
 static bool GVB_79B_Continue = false;
 
-CAN_frame_t KANGOO_423 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_std,
-                                      }},
-                          .MsgID = 0x423,
-                          .data = {0x0B, 0x1D, 0x00, 0x02, 0xB2, 0x20, 0xB2, 0xD9}};  // Charging
+CAN_frame KANGOO_423 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x423,
+                        .data = {0x0B, 0x1D, 0x00, 0x02, 0xB2, 0x20, 0xB2, 0xD9}};  // Charging
 // Driving: 0x07  0x1D  0x00  0x02  0x5D  0x80  0x5D  0xD8
 // Charging: 0x0B   0x1D  0x00  0x02  0xB2  0x20  0xB2  0xD9
 // Fastcharging: 0x07   0x1E  0x00  0x01  0x5D  0x20  0xB2  0xC7
 // Old hardcoded message: .data = {0x33, 0x00, 0xFF, 0xFF, 0x00, 0xE0, 0x00, 0x00}};
-CAN_frame_t KANGOO_79B = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_std,
-                                      }},
-                          .MsgID = 0x79B,
-                          .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0xE0, 0x00, 0x00}};
-CAN_frame_t KANGOO_79B_Continue = {.FIR = {.B =
-                                               {
-                                                   .DLC = 8,
-                                                   .FF = CAN_frame_std,
-                                               }},
-                                   .MsgID = 0x79B,
-                                   .data = {0x030, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame KANGOO_79B = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x79B,
+                        .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0xE0, 0x00, 0x00}};
+CAN_frame KANGOO_79B_Continue = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x79B,
+                                 .data = {0x30, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 static unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
 static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
@@ -103,9 +95,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //The above value is 0 on some packs. We instead hardcode this now.
   datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_W;
 
-  datalayer.battery.status.active_power_W =
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
-
   datalayer.battery.status.temperature_min_dC = (LB_MIN_TEMPERATURE * 10);
 
   datalayer.battery.status.temperature_max_dC = (LB_MAX_TEMPERATURE * 10);
@@ -113,13 +102,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_min_voltage_mV = LB_Cell_Min_Voltage;
 
   datalayer.battery.status.cell_max_voltage_mV = LB_Cell_Max_Voltage;
-
-  if (LB_Cell_Max_Voltage >= ABSOLUTE_CELL_MAX_VOLTAGE) {
-    set_event(EVENT_CELL_OVER_VOLTAGE, (LB_Cell_Max_Voltage / 20));
-  }
-  if (LB_Cell_Min_Voltage <= ABSOLUTE_CELL_MIN_VOLTAGE) {
-    set_event(EVENT_CELL_UNDER_VOLTAGE, (LB_Cell_Min_Voltage / 20));
-  }
 
 #ifdef DEBUG_VIA_USB
   Serial.println("Values going to inverter:");
@@ -155,9 +137,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame rx_frame) {
 
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     case 0x155:  //BMS1
       datalayer.battery.status.CAN_battery_still_alive =
           CAN_STILL_ALIVE;  //Indicate that we are still getting CAN messages from the BMS
@@ -233,7 +215,7 @@ void send_can_battery() {
   // Send 100ms CAN Message (for 2.4s, then pause 10s)
   if ((currentMillis - previousMillis100) >= (INTERVAL_100_MS + GVL_pause)) {
     previousMillis100 = currentMillis;
-    ESP32Can.CANWriteFrame(&KANGOO_423);
+    transmit_can(&KANGOO_423, can_config.battery);
     GVI_Pollcounter++;
     GVL_pause = 0;
     if (GVI_Pollcounter >= 24) {
@@ -245,20 +227,22 @@ void send_can_battery() {
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
     if (GVB_79B_Continue)
-      ESP32Can.CANWriteFrame(&KANGOO_79B_Continue);
+      transmit_can(&KANGOO_79B_Continue, can_config.battery);
   } else {
-    ESP32Can.CANWriteFrame(&KANGOO_79B);
+    transmit_can(&KANGOO_79B, can_config.battery);
   }
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Renault Kangoo battery selected");
-#endif
 
-  datalayer.battery.info.max_design_voltage_dV =
-      4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
-  datalayer.battery.info.min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
+  strncpy(datalayer.system.info.battery_protocol, "Renault Kangoo", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
+
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 
 #endif

@@ -2,16 +2,11 @@
 #ifdef KIA_HYUNDAI_64_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "KIA-HYUNDAI-64-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis10 = 0;   // will store last time a 10s CAN Message was send
-
-#define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE 2950  //Battery is put into emergency stop if one cell goes below this value
 
 static uint16_t soc_calculated = 0;
 static uint16_t SOC_BMS = 0;
@@ -42,104 +37,74 @@ static int8_t heatertemp = 0;
 static int8_t powerRelayTemperature = 0;
 static bool startedUp = false;
 
-CAN_frame_t KIA_HYUNDAI_200 = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x200,
-                               //.data = {0x00, 0x00, 0x00, 0x04, 0x00, 0x50, 0xD0, 0x00}}; //Initial value
-                               .data = {0x00, 0x80, 0xD8, 0x04, 0x00, 0x17, 0xD0, 0x00}};  //Mid log value
-CAN_frame_t KIA_HYUNDAI_523 = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x523,
-                               //.data = {0x00, 0x38, 0x28, 0x28, 0x28, 0x28, 0x00, 0x01}}; //Initial value
-                               .data = {0x08, 0x38, 0x36, 0x36, 0x33, 0x34, 0x00, 0x01}};  //Mid log value
-CAN_frame_t KIA_HYUNDAI_524 = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x524,
-                               .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Initial value
-
+CAN_frame KIA_HYUNDAI_200 = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x200,
+                             .data = {0x00, 0x80, 0xD8, 0x04, 0x00, 0x17, 0xD0, 0x00}};  //Mid log value
+CAN_frame KIA_HYUNDAI_523 = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x523,
+                             .data = {0x08, 0x38, 0x36, 0x36, 0x33, 0x34, 0x00, 0x01}};  //Mid log value
+CAN_frame KIA_HYUNDAI_524 = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x524,
+                             .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Initial value
 //553 Needed frame 200ms
-CAN_frame_t KIA64_553 = {.FIR = {.B =
-                                     {
-                                         .DLC = 8,
-                                         .FF = CAN_frame_std,
-                                     }},
-                         .MsgID = 0x553,
-                         .data = {0x04, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80, 0x00}};
+CAN_frame KIA64_553 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x553,
+                       .data = {0x04, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80, 0x00}};
 //57F Needed frame 100ms
-CAN_frame_t KIA64_57F = {.FIR = {.B =
-                                     {
-                                         .DLC = 8,
-                                         .FF = CAN_frame_std,
-                                     }},
-                         .MsgID = 0x57F,
-                         .data = {0x80, 0x0A, 0x72, 0x00, 0x00, 0x00, 0x00, 0x72}};
+CAN_frame KIA64_57F = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x57F,
+                       .data = {0x80, 0x0A, 0x72, 0x00, 0x00, 0x00, 0x00, 0x72}};
 //Needed frame 100ms
-CAN_frame_t KIA64_2A1 = {.FIR = {.B =
-                                     {
-                                         .DLC = 8,
-                                         .FF = CAN_frame_std,
-                                     }},
-                         .MsgID = 0x2A1,
-                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
-CAN_frame_t KIA64_7E4_id1 = {.FIR = {.B =
-                                         {
-                                             .DLC = 8,
-                                             .FF = CAN_frame_std,
-                                         }},
-                             .MsgID = 0x7E4,
-                             .data = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 01
-CAN_frame_t KIA64_7E4_id2 = {.FIR = {.B =
-                                         {
-                                             .DLC = 8,
-                                             .FF = CAN_frame_std,
-                                         }},
-                             .MsgID = 0x7E4,
-                             .data = {0x03, 0x22, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 02
-CAN_frame_t KIA64_7E4_id3 = {.FIR = {.B =
-                                         {
-                                             .DLC = 8,
-                                             .FF = CAN_frame_std,
-                                         }},
-                             .MsgID = 0x7E4,
-                             .data = {0x03, 0x22, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 03
-CAN_frame_t KIA64_7E4_id4 = {.FIR = {.B =
-                                         {
-                                             .DLC = 8,
-                                             .FF = CAN_frame_std,
-                                         }},
-                             .MsgID = 0x7E4,
-                             .data = {0x03, 0x22, 0x01, 0x04, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 04
-CAN_frame_t KIA64_7E4_id5 = {.FIR = {.B =
-                                         {
-                                             .DLC = 8,
-                                             .FF = CAN_frame_std,
-                                         }},
-                             .MsgID = 0x7E4,
-                             .data = {0x03, 0x22, 0x01, 0x05, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 05
-CAN_frame_t KIA64_7E4_id6 = {.FIR = {.B =
-                                         {
-                                             .DLC = 8,
-                                             .FF = CAN_frame_std,
-                                         }},
-                             .MsgID = 0x7E4,
-                             .data = {0x03, 0x22, 0x01, 0x06, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 06
-CAN_frame_t KIA64_7E4_ack = {
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x7E4,
+CAN_frame KIA64_2A1 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x2A1,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame KIA64_7E4_id1 = {.FD = false,
+                           .ext_ID = false,
+                           .DLC = 8,
+                           .ID = 0x7E4,
+                           .data = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 01
+CAN_frame KIA64_7E4_id2 = {.FD = false,
+                           .ext_ID = false,
+                           .DLC = 8,
+                           .ID = 0x7E4,
+                           .data = {0x03, 0x22, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 02
+CAN_frame KIA64_7E4_id3 = {.FD = false,
+                           .ext_ID = false,
+                           .DLC = 8,
+                           .ID = 0x7E4,
+                           .data = {0x03, 0x22, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 03
+CAN_frame KIA64_7E4_id4 = {.FD = false,
+                           .ext_ID = false,
+                           .DLC = 8,
+                           .ID = 0x7E4,
+                           .data = {0x03, 0x22, 0x01, 0x04, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 04
+CAN_frame KIA64_7E4_id5 = {.FD = false,
+                           .ext_ID = false,
+                           .DLC = 8,
+                           .ID = 0x7E4,
+                           .data = {0x03, 0x22, 0x01, 0x05, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 05
+CAN_frame KIA64_7E4_id6 = {.FD = false,
+                           .ext_ID = false,
+                           .DLC = 8,
+                           .ID = 0x7E4,
+                           .data = {0x03, 0x22, 0x01, 0x06, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 06
+CAN_frame KIA64_7E4_ack = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x7E4,
     .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Ack frame, correct PID is returned
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -159,10 +124,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_discharge_power_W = allowedDischargePower * 10;
 
-  //Power in watts, Negative = charging batt
-  datalayer.battery.status.active_power_W =
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
-
   datalayer.battery.status.temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
 
   datalayer.battery.status.temperature_max_dC = (int8_t)temperatureMax * 10;  //Increase decimals, 18C -> 18.0C
@@ -177,14 +138,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   if (leadAcidBatteryVoltage < 110) {
     set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
-  }
-
-  // Check if cell voltages are within allowed range
-  if (CellVoltMax_mV >= MAX_CELL_VOLTAGE) {
-    set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-  }
-  if (CellVoltMin_mV <= MIN_CELL_VOLTAGE) {
-    set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
@@ -255,18 +208,20 @@ void update_number_of_cells() {
     // Check if we have 98S or 90S battery
     if (datalayer.battery.status.cell_voltages_mV[97] > 0) {
       datalayer.battery.info.number_of_cells = 98;
-      datalayer.battery.info.max_design_voltage_dV = 4040;
-      datalayer.battery.info.min_design_voltage_dV = 3100;
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_98S_DV;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_98S_DV;
+      datalayer.battery.info.total_capacity_Wh = 64000;
     } else {
       datalayer.battery.info.number_of_cells = 90;
-      datalayer.battery.info.max_design_voltage_dV = 3870;
-      datalayer.battery.info.min_design_voltage_dV = 2250;
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_90S_DV;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;
+      datalayer.battery.info.total_capacity_Wh = 40000;
     }
   }
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+void receive_can_battery(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {
     case 0x4DE:
       startedUp = true;
       break;
@@ -313,17 +268,17 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       }
       poll_data_pid++;
       if (poll_data_pid == 1) {
-        ESP32Can.CANWriteFrame(&KIA64_7E4_id1);
+        transmit_can(&KIA64_7E4_id1, can_config.battery);
       } else if (poll_data_pid == 2) {
-        ESP32Can.CANWriteFrame(&KIA64_7E4_id2);
+        transmit_can(&KIA64_7E4_id2, can_config.battery);
       } else if (poll_data_pid == 3) {
-        ESP32Can.CANWriteFrame(&KIA64_7E4_id3);
+        transmit_can(&KIA64_7E4_id3, can_config.battery);
       } else if (poll_data_pid == 4) {
-        ESP32Can.CANWriteFrame(&KIA64_7E4_id4);
+        transmit_can(&KIA64_7E4_id4, can_config.battery);
       } else if (poll_data_pid == 5) {
-        ESP32Can.CANWriteFrame(&KIA64_7E4_id5);
+        transmit_can(&KIA64_7E4_id5, can_config.battery);
       } else if (poll_data_pid == 6) {
-        ESP32Can.CANWriteFrame(&KIA64_7E4_id6);
+        transmit_can(&KIA64_7E4_id6, can_config.battery);
       } else if (poll_data_pid == 7) {
       } else if (poll_data_pid == 8) {
       } else if (poll_data_pid == 9) {
@@ -334,7 +289,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
           if (rx_frame.data.u8[4] == poll_data_pid) {
-            ESP32Can.CANWriteFrame(&KIA64_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
+            transmit_can(&KIA64_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
           }
           break;
         case 0x21:  //First frame in PID group
@@ -516,9 +471,9 @@ void send_can_battery() {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    ESP32Can.CANWriteFrame(&KIA64_553);
-    ESP32Can.CANWriteFrame(&KIA64_57F);
-    ESP32Can.CANWriteFrame(&KIA64_2A1);
+    transmit_can(&KIA64_553, can_config.battery);
+    transmit_can(&KIA64_57F, can_config.battery);
+    transmit_can(&KIA64_2A1, can_config.battery);
   }
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
@@ -570,22 +525,21 @@ void send_can_battery() {
         break;
     }
 
-    ESP32Can.CANWriteFrame(&KIA_HYUNDAI_200);
+    transmit_can(&KIA_HYUNDAI_200, can_config.battery);
 
-    ESP32Can.CANWriteFrame(&KIA_HYUNDAI_523);
+    transmit_can(&KIA_HYUNDAI_523, can_config.battery);
 
-    ESP32Can.CANWriteFrame(&KIA_HYUNDAI_524);
+    transmit_can(&KIA_HYUNDAI_524, can_config.battery);
   }
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Kia Niro / Hyundai Kona 64kWh battery selected");
-#endif
-
-  datalayer.battery.info.max_design_voltage_dV =
-      4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
-  datalayer.battery.info.min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
+  strncpy(datalayer.system.info.battery_protocol, "Kia/Hyundai 64/40kWh battery", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_98S_DV;  //Start with 98S value. Precised later
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;  //Start with 90S value. Precised later
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 }
 
 #endif
