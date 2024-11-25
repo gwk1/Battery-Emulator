@@ -10,8 +10,9 @@ static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN
 static unsigned long previousMillis5s = 0;  // will store last time a 1s CAN Message was send
 static unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
 
+float cellVolt[16];          // calculated as 16 bit value * 6.250 / 16383 = volts
+
 struct moduledata {
-    float cellVolt[16];          // calculated as 16 bit value * 6.250 / 16383 = volts
     float lowestCellVolt[16];
     float highestCellVolt[16];
     float moduleVolt;          // calculated as 16 bit value * 33.333 / 16383 = volts
@@ -30,11 +31,12 @@ struct moduledata {
     int sensor;
     uint8_t moduleAddress;     //1 to 0x3E
     int scells;
-    int balstat;
     uint32_t error;
     int variant;
     int16_t TempOff;
+    int balstat=0;
     };
+
 
 moduledata modules[6];
 
@@ -86,6 +88,8 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
   datalayer.system.status.battery_allows_contactor_closing = true;
 
+  datalayer.battery.info.number_of_cells = 96;
+
   datalayer.battery.status.real_soc = 5000;  // 50.00%
 
   datalayer.battery.status.soh_pptt = 9900;  // 99.00%
@@ -112,10 +116,10 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
   datalayer.battery.status.max_charge_power_W = 5000;  // 5kW
 
-  for (int i = 0; i < 97; ++i) {
-    datalayer.battery.status.cell_voltages_mV[i] = 3500 + i;
+/*  for (int i = 0; i < 97; ++i) {
+    datalayer.battery.status.cell_voltages_mV[i] = 3500 ;
   }
-
+*/
   //Fake that we get CAN messages
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
@@ -138,22 +142,35 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
 
 void decodecandata(int CMU, int Id, CAN_frame &msg, bool Ign){
-  switch (Id) {
-    case 0:
+  if (Id==0) {
       modules[CMU].error = msg.data.u8[0] + (msg.data.u8[1] << 8) + (msg.data.u8[2] << 16) + (msg.data.u8[3] << 24);
       modules[CMU].balstat = (msg.data.u8[5]<< 8) + msg.data.u8[4];
 /*      Serial.print("Error: ");
       Serial.println(modules[CMU].error);
       Serial.print("Bal state: ");
       Serial.println(modules[CMU].balstat);*/
-      break;
-  }
+      }
+    int BASE=(CMU-2)*16+(Id-1)*3;
+    if (0<Id & Id<6)
+      {
+      int BASE=(CMU-2)*16+(Id-1)*3;
+      datalayer.battery.status.cell_voltages_mV[BASE]    = uint16_t(msg.data.u8[0] + (msg.data.u8[1] & 0x3F) * 256) ;
+      datalayer.battery.status.cell_voltages_mV[BASE+1]  = uint16_t(msg.data.u8[2] + (msg.data.u8[3] & 0x3F) * 256) ;
+      datalayer.battery.status.cell_voltages_mV[BASE+2]  = uint16_t(msg.data.u8[4] + (msg.data.u8[5] & 0x3F) * 256) ;
+      }
+    if (Id==6)
+      {
+      datalayer.battery.status.cell_voltages_mV[BASE]    = uint16_t(msg.data.u8[0] + (msg.data.u8[1] & 0x3F) * 256) ;
+      }
 }
+
+
 
 void decodecan(CAN_frame &msg)
 {
   int Id = (msg.ID & 0x0F0);
   int CMU = (msg.ID & 0x00F) + 1;
+
   switch (Id)
   {
     case 0x000:
@@ -202,8 +219,8 @@ void receive_can_battery(CAN_frame rx_frame) {
   // All CAN messages recieved will be logged via serial
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-    previousMillis100 = currentMillis;
+/*  if (currentMillis - previousMillis10 >= INTERVAL_100_MS) {
+    previousMillis10 = currentMillis;
     Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
     Serial.print(" RX ");
     Serial.print(rx_frame.ID, HEX);
@@ -215,7 +232,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       Serial.print(" ");
     }
     Serial.println("");
-  }
+  }*/
 
 
 
@@ -373,8 +390,8 @@ uint8_t getcheck(CAN_frame &msg, int id) {
   for (int i = 0; i < (msg.DLC - 1); i++) {
     canmes[i + 2] = msg.data.u8[i];
   }
-  /*
-    Serial.println();
+  
+/*    Serial.println();
     for (int i = 0; i <  meslen; i++)
     {
     Serial.print(canmes[i], HEX);
@@ -401,7 +418,7 @@ void send_can_battery() {
   
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis5s >= INTERVAL_100_MS) {
+  if (currentMillis - previousMillis5s >= INTERVAL_20_MS) {
     previousMillis5s = currentMillis;
     // Put fake messages here incase you want to test sending CAN
 
@@ -448,7 +465,7 @@ void send_can_battery() {
     transmit_can(&TEST, can_config.battery);
     nextmes++;
 
-    Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
+/*    Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
     Serial.print(" TX ");
     Serial.print(TEST.ID, HEX);
     Serial.print(" ");
@@ -458,7 +475,7 @@ void send_can_battery() {
       Serial.print(TEST.data.u8[i], HEX);
       Serial.print(" ");
     }
-    Serial.println("");
+    Serial.println("");*/
 
   }
 }
@@ -466,13 +483,23 @@ void send_can_battery() {
 void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("Test mode with fake battery selected");
+
 #endif
+  crc8.begin();
+
+  strncpy(datalayer.system.info.battery_protocol, "BMW PHEV MODULE", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
 
   datalayer.battery.info.max_design_voltage_dV =
     4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
   datalayer.battery.info.min_design_voltage_dV = 2450;  // 245.0V under this, discharging further is disabled
 
   datalayer.system.status.battery_allows_contactor_closing = true;
+
+  for (int i = 0; i < 97; ++i) {
+    datalayer.battery.status.cell_voltages_mV[i] = 3500 ;
+  }
+
 }
 
 #endif
