@@ -87,7 +87,7 @@ uint8_t frame3[9] = {
 uint8_t frame4[8]   = {0x07, 0xE3, 0xFF, 0x02, 0xFF, 0x29, 0xF4, 0x00};
 uint8_t frameB1[10] = {0x07, 0x63, 0xFF, 0x02, 0xFF, 0x29, 0x5E, 0x02, 0x16, 0x00};
 
-uint8_t RS485_RXFRAME[10];
+uint8_t RS485_RXFRAME[300];
 
 bool register_content_ok = false;
 
@@ -144,12 +144,17 @@ byte calculate_frame1_crc(byte* lfc, int lastbyte) {
   return ((byte) ~(sum - 0x28) & 0xff);
 }
 
-bool check_kostal_frame_crc() {
+bool check_kostal_frame_crc(int len) {
   unsigned int sum = 0;
-  for (int i = 1; i < 8; ++i) {
+  int zeropointer=RS485_RXFRAME[0];
+  for (int i = 1; i < len-2; ++i) {
+    if(RS485_RXFRAME[i]==zeropointer) {
+      zeropointer=RS485_RXFRAME[i];
+      RS485_RXFRAME[i]=0x00;
+    }
     sum += RS485_RXFRAME[i];
   }
-  if (((~sum + 1) & 0xff) == (RS485_RXFRAME[8] & 0xff)) {
+  if ((-sum & 0xff) == (RS485_RXFRAME[len-2] & 0xff)) {
     return (true);
   } else {
     return (false);
@@ -281,17 +286,18 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
     if (RX_allow) {
       rx_index++;
       if (RS485_RXFRAME[rx_index - 1] == 0x00) {
-        if ((rx_index == 10) && (RS485_RXFRAME[0] == 0x09) && register_content_ok) {
+        
+        if (register_content_ok) {
 #ifdef DEBUG_KOSTAL_RS485_DATA
           Serial.print("RX: ");
-          for (uint8_t i = 0; i < 10; i++) {
+          for (uint8_t i = 0; rx_index; i++) {
             Serial.print(RS485_RXFRAME[i], HEX);
             Serial.print(" ");
           }
           Serial.println("");
 #endif
           rx_index = 0;
-          if (check_kostal_frame_crc()) {
+          if (check_kostal_frame_crc(rx_index)) {
             incoming_message_counter = RS485_HEALTHY;
 
             if (RS485_RXFRAME[1] == 'c') {
