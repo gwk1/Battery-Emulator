@@ -35,6 +35,7 @@ jobs:
         battery:
           - BMW_I3_BATTERY
           - BYD_ATTO_3_BATTERY
+          - CELLPOWER_BMS
           - CHADEMO_BATTERY
           - IMIEV_CZERO_ION_BATTERY
           - JAGUAR_IPACE_BATTERY
@@ -42,10 +43,11 @@ jobs:
           - KIA_HYUNDAI_HYBRID_BATTERY
           - NISSAN_LEAF_BATTERY
           - PYLON_BATTERY
+          - RJXZS_BMS
           - RENAULT_KANGOO_BATTERY
           - RENAULT_ZOE_GEN1_BATTERY
           - RENAULT_ZOE_GEN2_BATTERY
-          - TESLA_MODEL_3_BATTERY
+          - TESLA_MODEL_3Y_BATTERY
           - VOLVO_SPA_BATTERY
           - TEST_FAKE_BATTERY
           - SERIAL_LINK_RECEIVER

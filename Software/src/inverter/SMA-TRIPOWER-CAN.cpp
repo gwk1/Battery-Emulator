@@ -149,8 +149,9 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
-  ampere_hours_remaining = ((datalayer.battery.status.remaining_capacity_Wh / datalayer.battery.status.voltage_dV) *
-                            100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
+  ampere_hours_remaining =
+      ((datalayer.battery.status.reported_remaining_capacity_Wh / datalayer.battery.status.voltage_dV) *
+       100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
   ampere_hours_max = ((datalayer.battery.info.total_capacity_Wh / datalayer.battery.status.voltage_dV) *
                       100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
 
@@ -292,15 +293,20 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 void receive_can_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x00D:  //Inverter Measurements
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x00F:  //Inverter Feedback
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x010:  //Time from inverter
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x015:  //Initialization message from inverter
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       send_tripower_init();
       break;
     case 0x017:  //Initialization message from inverter 2
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       //send_tripower_init();
       break;
     default:
