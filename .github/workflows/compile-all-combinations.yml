@@ -41,19 +41,23 @@ jobs:
           - CHADEMO_BATTERY
           - IMIEV_CZERO_ION_BATTERY
           - KIA_HYUNDAI_64_BATTERY
+          - KIA_HYUNDAI_HYBRID_BATTERY
           - NISSAN_LEAF_BATTERY
           - PYLON_BATTERY
+          - RJXZS_BMS
           - RENAULT_KANGOO_BATTERY
           - RENAULT_ZOE_GEN1_BATTERY
           - RENAULT_ZOE_GEN2_BATTERY
-          - TESLA_MODEL_3_BATTERY
+          - TESLA_MODEL_3Y_BATTERY
           - VOLVO_SPA_BATTERY
           - TEST_FAKE_BATTERY
         # These are the emulated inverter communication protocols for which the code will be compiled.
         inverter:
           - BYD_CAN
+          - BYD_KOSTAL_RS485
+          - BYD_SMA
           - BYD_MODBUS
-          - LUNA2000_MODBUS
+          - FOXESS_CAN
           - PYLON_CAN
           - SMA_CAN
           - SMA_TRIPOWER_CAN
@@ -73,7 +77,7 @@ jobs:
       # We use the `arduino/setup-arduino-cli` action to install and
       # configure the Arduino CLI on the system.
       - name: Setup Arduino CLI
-        uses: arduino/setup-arduino-cli@v1
+        uses: arduino/setup-arduino-cli@v2
 
       # We then install the platform.
       - name: Install platform

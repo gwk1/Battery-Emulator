@@ -52,6 +52,9 @@
 #define NEGATIVE_CONTACTOR_PIN 33
 #define PRECHARGE_PIN 25
 
+// SMA CAN contactor pins
+#define INVERTER_CONTACTOR_ENABLE_PIN 5
+
 // SD card
 #define SD_MISO_PIN 2
 #define SD_MOSI_PIN 15
@@ -61,6 +64,9 @@
 // LED
 #define LED_PIN 4
 #define LED_MAX_BRIGHTNESS 40
+
+// Equipment stop pin
+#define EQUIPMENT_STOP_PIN 35
 
 /* ----- Error checks below, don't change (can't be moved to separate file) ----- */
 #ifndef HW_CONFIGURED
@@ -72,6 +78,24 @@
 #ifdef CHADEMO_BATTERY
 #ifdef DUAL_CAN
 #error CHADEMO and DUAL_CAN cannot coexist due to overlapping GPIO pin usage
+#endif
+#endif
+
+#ifdef EQUIPMENT_STOP_BUTTON
+#ifdef DUAL_CAN
+#error EQUIPMENT_STOP_BUTTON and DUAL_CAN cannot coexist due to overlapping GPIO pin usage
+#endif
+#ifdef CAN_FD
+#error EQUIPMENT_STOP_BUTTON and CAN_FD cannot coexist due to overlapping GPIO pin usage
+#endif
+#ifdef CHADEMO_BATTERY
+#error EQUIPMENT_STOP_BUTTON and CHADEMO_BATTERY cannot coexist due to overlapping GPIO pin usage
+#endif
+#endif
+
+#ifdef BMW_I3_BATTERY
+#ifdef CONTACTOR_CONTROL
+#error GPIO PIN 25 cannot be used for both BMWi3 Wakeup and contactor control. Disable CONTACTOR_CONTROL
 #endif
 #endif
 
