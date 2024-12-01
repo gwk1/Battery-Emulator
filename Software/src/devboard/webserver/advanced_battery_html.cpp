@@ -9,12 +9,55 @@ String advanced_battery_processor(const String& var) {
     //Page format
     content += "<style>";
     content += "body { background-color: black; color: white; }";
+    content +=
+        "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; "
+        "cursor: pointer; border-radius: 10px; }";
+    content += "button:hover { background-color: #3A4A52; }";
     content += "</style>";
 
     content += "<button onclick='goToMainPage()'>Back to main page</button>";
 
     // Start a new block with a specific background color
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+
+#ifdef BMW_IX_BATTERY
+    content +=
+        "<h4>Battery Voltage after Contactor: " + String(datalayer_extended.bmwix.battery_voltage_after_contactor) +
+        " dV</h4>";
+    content += "<h4>Max Design Voltage: " + String(datalayer.battery.info.max_design_voltage_dV) + " dV</h4>";
+    content += "<h4>Min Design Voltage: " + String(datalayer.battery.info.min_design_voltage_dV) + " dV</h4>";
+    content += "<h4>Max Cell Design Voltage: " + String(datalayer.battery.info.max_cell_voltage_mV) + " mV</h4>";
+    content += "<h4>Min Cell Design Voltage: " + String(datalayer.battery.info.min_cell_voltage_mV) + " mV</h4>";
+    content +=
+        "<h4>Min Cell Voltage Data Age: " + String(datalayer_extended.bmwix.min_cell_voltage_data_age) + " ms</h4>";
+    content +=
+        "<h4>Max Cell Voltage Data Age: " + String(datalayer_extended.bmwix.max_cell_voltage_data_age) + " ms</h4>";
+    content += "<h4>Allowed Discharge Power: " + String(datalayer.battery.status.max_discharge_power_W) + " W</h4>";
+    content += "<h4>Allowed Charge Power: " + String(datalayer.battery.status.max_charge_power_W) + " W</h4>";
+    content += "<h4>T30 Terminal Voltage: " + String(datalayer_extended.bmwix.T30_Voltage) + " mV</h4>";
+    content += "<h4>Detected Cell Count: " + String(datalayer.battery.info.number_of_cells) + "</h4>";
+    static const char* balanceText[5] = {"0 No balancing mode active", "1 Voltage-Controlled Balancing Mode",
+                                         "2 Time-Controlled Balancing Mode with Demand Calculation at End of Charging",
+                                         "3 Time-Controlled Balancing Mode with Demand Calculation at Resting Voltage",
+                                         "4 No balancing mode active, qualifier invalid"};
+    content += "<h4>Balancing: " + String((balanceText[datalayer_extended.bmwix.balancing_status])) + "</h4>";
+    static const char* hvilText[2] = {"Error (Loop Open)", "OK (Loop Closed)"};
+    content += "<h4>HVIL Status: " + String(hvilText[datalayer_extended.bmwix.hvil_status]) + "</h4>";
+    content += "<h4>BMS Uptime: " + String(datalayer_extended.bmwix.bms_uptime) + " seconds</h4>";
+    content += "<h4>BMS Allowed Charge Amps: " + String(datalayer_extended.bmwix.allowable_charge_amps) + " A</h4>";
+    content +=
+        "<h4>BMS Allowed Disharge Amps: " + String(datalayer_extended.bmwix.allowable_discharge_amps) + " A</h4>";
+    content += "<br>";
+    content += "<h3>HV Isolation (2147483647kOhm = maximum/invalid)</h3>";
+    content += "<h4>Isolation Positive: " + String(datalayer_extended.bmwix.iso_safety_positive) + " kOhm</h4>";
+    content += "<h4>Isolation Negative: " + String(datalayer_extended.bmwix.iso_safety_negative) + " kOhm</h4>";
+    content += "<h4>Isolation Parallel: " + String(datalayer_extended.bmwix.iso_safety_parallel) + " kOhm</h4>";
+    static const char* pyroText[5] = {"0 Value Invalid", "1 Successfully Blown", "2 Disconnected",
+                                      "3 Not Activated - Pyro Intact", "4 Unknown"};
+    content += "<h4>Pyro Status PSS1: " + String((pyroText[datalayer_extended.bmwix.pyro_status_pss1])) + "</h4>";
+    content += "<h4>Pyro Status PSS4: " + String((pyroText[datalayer_extended.bmwix.pyro_status_pss4])) + "</h4>";
+    content += "<h4>Pyro Status PSS6: " + String((pyroText[datalayer_extended.bmwix.pyro_status_pss6])) + "</h4>";
+#endif  //BMW_IX_BATTERY
 
 #ifdef BMW_I3_BATTERY
     content += "<h4>SOC raw: " + String(datalayer_extended.bmwi3.SOC_raw) + "</h4>";
@@ -236,6 +279,8 @@ String advanced_battery_processor(const String& var) {
 #endif  //CELLPOWER_BMS
 
 #ifdef BYD_ATTO_3_BATTERY
+    static const char* SOCmethod[2] = {"Estimated from voltage", "Measured by BMS"};
+    content += "<h4>SOC method used: " + String(SOCmethod[datalayer_extended.bydAtto3.SOC_method]) + "</h4>";
     content += "<h4>SOC estimated: " + String(datalayer_extended.bydAtto3.SOC_estimated) + "</h4>";
     content += "<h4>SOC highprec: " + String(datalayer_extended.bydAtto3.SOC_highprec) + "</h4>";
     content += "<h4>SOC OBD2: " + String(datalayer_extended.bydAtto3.SOC_polled) + "</h4>";
@@ -244,6 +289,80 @@ String advanced_battery_processor(const String& var) {
 #endif  //BYD_ATTO_3_BATTERY
 
 #ifdef TESLA_BATTERY
+    float beginning_of_life = static_cast<float>(datalayer_extended.tesla.battery_beginning_of_life);
+    float battTempPct = static_cast<float>(datalayer_extended.tesla.battery_battTempPct) * 0.4;
+    float dcdcLvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.0390625;
+    float dcdcHvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcHvBusVolt) * 0.146484;
+    float dcdcLvOutputCurrent = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1;
+    float nominal_full_pack_energy =
+        static_cast<float>(datalayer_extended.tesla.battery_nominal_full_pack_energy) * 0.1;
+    float nominal_full_pack_energy_m0 =
+        static_cast<float>(datalayer_extended.tesla.battery_nominal_full_pack_energy_m0) * 0.02;
+    float nominal_energy_remaining =
+        static_cast<float>(datalayer_extended.tesla.battery_nominal_energy_remaining) * 0.1;
+    float nominal_energy_remaining_m0 =
+        static_cast<float>(datalayer_extended.tesla.battery_nominal_energy_remaining_m0) * 0.02;
+    float ideal_energy_remaining = static_cast<float>(datalayer_extended.tesla.battery_ideal_energy_remaining) * 0.1;
+    float ideal_energy_remaining_m0 =
+        static_cast<float>(datalayer_extended.tesla.battery_ideal_energy_remaining_m0) * 0.02;
+    float energy_to_charge_complete =
+        static_cast<float>(datalayer_extended.tesla.battery_energy_to_charge_complete) * 0.1;
+    float energy_to_charge_complete_m1 =
+        static_cast<float>(datalayer_extended.tesla.battery_energy_to_charge_complete_m1) * 0.02;
+    float energy_buffer = static_cast<float>(datalayer_extended.tesla.battery_energy_buffer) * 0.1;
+    float energy_buffer_m1 = static_cast<float>(datalayer_extended.tesla.battery_energy_buffer_m1) * 0.01;
+    float total_discharge = static_cast<float>(datalayer_extended.tesla.battery_total_discharge);
+    float total_charge = static_cast<float>(datalayer_extended.tesla.battery_total_charge);
+    float packMass = static_cast<float>(datalayer_extended.tesla.battery_packMass);
+    float platformMaxBusVoltage =
+        static_cast<float>(datalayer_extended.tesla.battery_platformMaxBusVoltage) * 0.1 + 375;
+    float bms_min_voltage = static_cast<float>(datalayer_extended.tesla.battery_bms_min_voltage) * 0.01 * 2;
+    float bms_max_voltage = static_cast<float>(datalayer_extended.tesla.battery_bms_max_voltage) * 0.01 * 2;
+    float max_charge_current = static_cast<float>(datalayer_extended.tesla.battery_max_charge_current);
+    float max_discharge_current = static_cast<float>(datalayer_extended.tesla.battery_max_discharge_current);
+    float soc_ave = static_cast<float>(datalayer_extended.tesla.battery_soc_ave) * 0.1;
+    float soc_max = static_cast<float>(datalayer_extended.tesla.battery_soc_max) * 0.1;
+    float soc_min = static_cast<float>(datalayer_extended.tesla.battery_soc_min) * 0.1;
+    float soc_ui = static_cast<float>(datalayer_extended.tesla.battery_soc_ui) * 0.1;
+
+    // Comment what data you would like to dislay, order can be changed.
+    content += "<h4>Battery Beginning of Life: " + String(beginning_of_life) + " kWh</h4>";
+    content += "<h4>BattTempPct: " + String(battTempPct) + " </h4>";
+    content += "<h4>PCS Lv Bus: " + String(dcdcLvBusVolt) + " V</h4>";
+    content += "<h4>PCS Hv Bus: " + String(dcdcHvBusVolt) + " V</h4>";
+    content += "<h4>PCS Lv Output: " + String(dcdcLvOutputCurrent) + " A</h4>";
+
+    //if using older BMS <2021 and comment 0x352 without MUX
+    //content += "<h4>Nominal Full Pack Energy: " + String(nominal_full_pack_energy) + " kWh</h4>";
+    //content += "<h4>Nominal Energy Remaining: " + String(nominal_energy_remaining) + " kWh</h4>";
+    //content += "<h4>Ideal Energy Remaining: " + String(ideal_energy_remaining) + " kWh</h4>";
+    //content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete) + " kWh</h4>";
+    //content += "<h4>Energy Buffer: " + String(energy_buffer) + " kWh</h4>";
+
+    //if using newer BMS >2021 and comment 0x352 with MUX
+    content += "<h4>Nominal Full Pack Energy m0: " + String(nominal_full_pack_energy_m0) + " kWh</h4>";
+    content += "<h4>Nominal Energy Remaining m0: " + String(nominal_energy_remaining_m0) + " kWh</h4>";
+    content += "<h4>Ideal Energy Remaining m0: " + String(ideal_energy_remaining_m0) + " kWh</h4>";
+    content += "<h4>Energy to Charge Complete m1: " + String(energy_to_charge_complete_m1) + " kWh</h4>";
+    content += "<h4>Energy Buffer m1: " + String(energy_buffer_m1) + " kWh</h4>";
+
+    content += "<h4>packConfigMultiplexer: " + String(datalayer_extended.tesla.battery_packConfigMultiplexer) + "</h4>";
+    content += "<h4>moduleType: " + String(datalayer_extended.tesla.battery_moduleType) + "</h4>";
+    content += "<h4>reserveConfig: " + String(datalayer_extended.tesla.battery_reservedConfig) + "</h4>";
+    content += "<h4>Full Charge Complete: " + String(datalayer_extended.tesla.battery_full_charge_complete) + "</h4>";
+    content += "<h4>Total Discharge: " + String(total_discharge) + " kWh</h4>";
+    content += "<h4>Total Charge: " + String(total_charge) + " kWh</h4>";
+    content += "<h4>Battery Pack Mass: " + String(packMass) + " KG</h4>";
+    content += "<h4>Platform Max Bus Voltage: " + String(platformMaxBusVoltage) + " V</h4>";
+    content += "<h4>BMS Min Voltage: " + String(bms_min_voltage) + " V</h4>";
+    content += "<h4>BMS Max Voltage: " + String(bms_max_voltage) + " V</h4>";
+    content += "<h4>Max Charge Current: " + String(max_charge_current) + " A</h4>";
+    content += "<h4>Max Discharge Current: " + String(max_discharge_current) + " A</h4>";
+    content += "<h4>Battery SOC Ave: " + String(soc_ave) + " </h4>";
+    content += "<h4>Battery SOC Max: " + String(soc_max) + " </h4>";
+    content += "<h4>Battery SOC Min: " + String(soc_min) + " </h4>";
+    content += "<h4>Battery SOC UI: " + String(soc_ui) + " </h4>";
+
     static const char* contactorText[] = {"UNKNOWN(0)",  "OPEN",        "CLOSING",    "BLOCKED", "OPENING",
                                           "CLOSED",      "UNKNOWN(6)",  "WELDED",     "POS_CL",  "NEG_CL",
                                           "UNKNOWN(10)", "UNKNOWN(11)", "UNKNOWN(12)"};
@@ -278,11 +397,13 @@ String advanced_battery_processor(const String& var) {
 #endif
 
 #ifdef NISSAN_LEAF_BATTERY
-    content += "<h4>LEAF generation: " + String(datalayer_extended.nissanleaf.LEAF_gen) + "</h4>";
+    static const char* LEAFgen[] = {"ZE0", "AZE0", "ZE1"};
+    content += "<h4>LEAF generation: " + String(LEAFgen[datalayer_extended.nissanleaf.LEAF_gen]) + "</h4>";
     content += "<h4>GIDS: " + String(datalayer_extended.nissanleaf.GIDS) + "</h4>";
     content += "<h4>Regen kW: " + String(datalayer_extended.nissanleaf.ChargePowerLimit) + "</h4>";
     content += "<h4>Charge kW: " + String(datalayer_extended.nissanleaf.MaxPowerForCharger) + "</h4>";
     content += "<h4>Interlock: " + String(datalayer_extended.nissanleaf.Interlock) + "</h4>";
+    content += "<h4>Insulation: " + String(datalayer_extended.nissanleaf.Insulation) + "</h4>";
     content += "<h4>Relay cut request: " + String(datalayer_extended.nissanleaf.RelayCutRequest) + "</h4>";
     content += "<h4>Failsafe status: " + String(datalayer_extended.nissanleaf.FailsafeStatus) + "</h4>";
     content += "<h4>Fully charged: " + String(datalayer_extended.nissanleaf.Full) + "</h4>";
@@ -292,6 +413,11 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Heating stopped: " + String(datalayer_extended.nissanleaf.HeatingStop) + "</h4>";
     content += "<h4>Heating started: " + String(datalayer_extended.nissanleaf.HeatingStart) + "</h4>";
     content += "<h4>Heating requested: " + String(datalayer_extended.nissanleaf.HeaterSendRequest) + "</h4>";
+    content += "<button onclick='askResetSOH()'>Reset degradation data</button>";
+    content += "<h4>CryptoChallenge: " + String(datalayer_extended.nissanleaf.CryptoChallenge) + "</h4>";
+    content += "<h4>SolvedChallenge: " + String(datalayer_extended.nissanleaf.SolvedChallengeMSB) +
+               String(datalayer_extended.nissanleaf.SolvedChallengeLSB) + "</h4>";
+    content += "<h4>Challenge failed: " + String(datalayer_extended.nissanleaf.challengeFailed) + "</h4>";
 #endif
 
 #ifdef RENAULT_ZOE_GEN2_BATTERY
@@ -349,6 +475,15 @@ String advanced_battery_processor(const String& var) {
     content += "</div>";
 
     content += "<script>";
+    content +=
+        "function askResetSOH() { if (window.confirm('Are you sure you want to reset degradation data? "
+        "Note this should only be used on 2011-2017 24/30kWh batteries!')) { "
+        "resetSOH(); } }";
+    content += "function resetSOH() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/resetSOH', true);";
+    content += "  xhr.send();";
+    content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
     return content;
