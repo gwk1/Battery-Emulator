@@ -10,7 +10,7 @@ static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN
 static unsigned long previousMillis5s = 0;  // will store last time a 1s CAN Message was send
 static unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
 
-float cellVolt[16];          // calculated as 16 bit value * 6.250 / 16383 = volts
+//float cellVolt[16];          // calculated as 16 bit value * 6.250 / 16383 = volts
 
 struct moduledata {
     float lowestCellVolt[16];
@@ -49,7 +49,7 @@ uint8_t nextmes = 0;
 uint16_t commandrate = 50;
 uint8_t testcycle = 0;
 uint8_t DMC[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-uint8_t Unassigned, NextID = 0;
+uint8_t Unassigned, NextID = 5;
 char msgString[128];  
 int storagemode = 0;
 int cellspresent = 0;
@@ -116,10 +116,6 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
   datalayer.battery.status.max_charge_power_W = 5000;  // 5kW
 
-/*  for (int i = 0; i < 97; ++i) {
-    datalayer.battery.status.cell_voltages_mV[i] = 3500 ;
-  }
-*/
   //Fake that we get CAN messages
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
@@ -143,24 +139,43 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
 void decodecandata(int CMU, int Id, CAN_frame &msg, bool Ign){
   if (Id==0) {
-      modules[CMU].error = msg.data.u8[0] + (msg.data.u8[1] << 8) + (msg.data.u8[2] << 16) + (msg.data.u8[3] << 24);
-      modules[CMU].balstat = (msg.data.u8[5]<< 8) + msg.data.u8[4];
+//      modules[CMU].error = msg.data.u8[0] + (msg.data.u8[1] << 8) + (msg.data.u8[2] << 16) + (msg.data.u8[3] << 24);
+//      modules[CMU].balstat = (msg.data.u8[5]<< 8) + msg.data.u8[4];
 /*      Serial.print("Error: ");
       Serial.println(modules[CMU].error);
       Serial.print("Bal state: ");
       Serial.println(modules[CMU].balstat);*/
       }
-    int BASE=(CMU-2)*16+(Id-1)*3;
+    int BASE=(CMU-1)*16+(Id-1)*3;
+/*    Serial.print(msg.ID, HEX);
+    Serial.print(" ");
+    Serial.print(CMU);
+    Serial.print(" ");
+    Serial.print(Id);
+    Serial.print(" ");
+    Serial.println(BASE);*/
+
     if (0<Id & Id<6)
       {
-      int BASE=(CMU-2)*16+(Id-1)*3;
       datalayer.battery.status.cell_voltages_mV[BASE]    = uint16_t(msg.data.u8[0] + (msg.data.u8[1] & 0x3F) * 256) ;
       datalayer.battery.status.cell_voltages_mV[BASE+1]  = uint16_t(msg.data.u8[2] + (msg.data.u8[3] & 0x3F) * 256) ;
       datalayer.battery.status.cell_voltages_mV[BASE+2]  = uint16_t(msg.data.u8[4] + (msg.data.u8[5] & 0x3F) * 256) ;
+/*    Serial.print (BASE);
+    Serial.print (" - ");
+    Serial.println(uint16_t(msg.data.u8[0] + (msg.data.u8[1] & 0x3F) * 256) );
+    Serial.print (BASE+1);
+    Serial.print (" - ");
+    Serial.println(uint16_t(msg.data.u8[2] + (msg.data.u8[3] & 0x3F) * 256) );
+    Serial.print (BASE+2);
+    Serial.print (" - ");
+    Serial.println(uint16_t(msg.data.u8[4] + (msg.data.u8[5] & 0x3F) * 256) );*/
       }
     if (Id==6)
       {
       datalayer.battery.status.cell_voltages_mV[BASE]    = uint16_t(msg.data.u8[0] + (msg.data.u8[1] & 0x3F) * 256) ;
+    Serial.print (BASE);
+    Serial.print (" - ");
+    Serial.println(uint16_t(msg.data.u8[0] + (msg.data.u8[1] & 0x3F) * 256) );
       }
 }
 
@@ -199,17 +214,17 @@ void decodecan(CAN_frame &msg)
       Id = 6;
       break;
   }
-/*  if (CMU < 14 && Id < 7)
-  {
-      Serial.print(CMU);
-      Serial.print(",");
-      Serial.print(Id);
-      Serial.println();
-  }*/
-  modules[CMU].exists=1;
-  modules[CMU].reset=1; 
-  boolean BalIgnore=0;
-  decodecandata(CMU,Id, msg, BalIgnore);
+  if (CMU < 14 && Id < 7)
+    {
+/*    Serial.print(CMU);
+    Serial.print(",");
+    Serial.print(Id);
+    Serial.println();*/
+ //   modules[CMU].exists=1;
+ //   modules[CMU].reset=1; 
+    boolean BalIgnore=0;
+      decodecandata(CMU,Id, msg, BalIgnore);
+    }
 }
 
 
@@ -231,7 +246,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       Serial.print(rx_frame.data.u8[i], HEX);
       Serial.print(" ");
     }
-    Serial.println("");
+    Serial.println("")
   }*/
 
 
@@ -411,14 +426,14 @@ void send_can_battery() {
   }
 
   if (!resetid) {
-//	  resetIDdebug();
-  resetid=1;
-  Serial.println("Reset ID debug");
+    //resetIDdebug();
+    resetid=1;
+    Serial.println("Reset ID debug");
   }
   
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis5s >= INTERVAL_20_MS) {
+  if (currentMillis - previousMillis5s >= INTERVAL_10_MS) {
     previousMillis5s = currentMillis;
     // Put fake messages here incase you want to test sending CAN
 
@@ -475,8 +490,8 @@ void send_can_battery() {
       Serial.print(TEST.data.u8[i], HEX);
       Serial.print(" ");
     }
-    Serial.println("");*/
-
+    Serial.println("");
+*/
   }
 }
 
@@ -496,9 +511,12 @@ void setup_battery(void) {  // Performs one time setup at startup
 
   datalayer.system.status.battery_allows_contactor_closing = true;
 
-  for (int i = 0; i < 97; ++i) {
-    datalayer.battery.status.cell_voltages_mV[i] = 3500 ;
+  for (int i = 0; i < 96; ++i) {
+    datalayer.battery.status.cell_voltages_mV[i] = 1000 ;
   }
+//  for (int i = 80; i < 96; ++i) {
+//    datalayer.battery.status.cell_voltages_mV[i] = 3600+i ;
+//  }
 
 }
 
