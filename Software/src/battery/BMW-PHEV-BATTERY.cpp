@@ -16,7 +16,6 @@ struct moduledata {
     float lowestCellVolt[16];
     float highestCellVolt[16];
     float moduleVolt;          // calculated as 16 bit value * 33.333 / 16383 = volts
-    float temperatures[4];     // Don't know the proper scaling at this point
     float lowestTemperature;
     float highestTemperature;
     float lowestModuleVolt;
@@ -25,17 +24,13 @@ struct moduledata {
     bool exists;
     bool reset;
     int alerts;
-    int faults;
-    int COVFaults;
-    int CUVFaults;
     int sensor;
     uint8_t moduleAddress;     //1 to 0x3E
-    int scells;
     uint32_t error;
-    int variant;
-    int16_t TempOff;
     int balstat=0;
     };
+
+
 
 
 moduledata modules[6];
@@ -46,7 +41,6 @@ const uint8_t finalxor[12] = { 0xCF, 0xF5, 0xBB, 0x81, 0x27, 0x1D, 0x53, 0x69, 0
 
 uint8_t Imod, mescycle = 0;
 uint8_t nextmes = 0;
-uint16_t commandrate = 50;
 uint8_t testcycle = 0;
 uint8_t DMC[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 uint8_t Unassigned, NextID = 5;
@@ -58,18 +52,12 @@ int Charged = 0;
 bool balancepauze = 0;
 bool resetid=0;
 
-//Debugging modes//////////////////
-int debug = 1;
-int inputcheck = 0;   //read digital inputs
-int outputcheck = 0;  //check outputs
-int candebug = 0;     //view can frames
-int gaugedebug = 0;
-int debugCur = 0;
-int CSVdebug = 0;
-int menuload = 0;
 int balancecells;
-int debugdigits = 2;  //amount of digits behind decimal for voltage reading
-int balancedebug = 0;
+
+uint16_t mincell;
+uint16_t maxcell;
+
+int8_t celltemp[64];
 
 
 CAN_frame TEST = {.FD = false,
@@ -90,34 +78,54 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
   datalayer.battery.info.number_of_cells = 96;
 
-  datalayer.battery.status.real_soc = 5000;  // 50.00%
-
   datalayer.battery.status.soh_pptt = 9900;  // 99.00%
 
   //datalayer.battery.status.voltage_dV = 3700;  // 370.0V , value set in startup in .ino file, editable via webUI
 
   datalayer.battery.status.current_dA = 0;  // 0 A
 
-  datalayer.battery.info.total_capacity_Wh = 30000;  // 30kWh
+  datalayer.battery.info.total_capacity_Wh = 9000;  // 30kWh
 
-  datalayer.battery.status.remaining_capacity_Wh = 15000;  // 15kWh
+  datalayer.battery.status.remaining_capacity_Wh = 8000;  // 15kWh
 
-  datalayer.battery.status.cell_max_voltage_mV = 3596;
+  mincell=datalayer.battery.status.cell_voltages_mV[0];
+  maxcell=datalayer.battery.status.cell_voltages_mV[0];
+  for (int idx = 1; idx < datalayer.battery.info.number_of_cells; idx++) {
+    if(datalayer.battery.status.cell_voltages_mV[idx]<mincell) {
+      mincell=datalayer.battery.status.cell_voltages_mV[idx];
+    }
+    if(datalayer.battery.status.cell_voltages_mV[idx]>maxcell) {
+      maxcell=datalayer.battery.status.cell_voltages_mV[idx];
+    }
+  }   
 
-  datalayer.battery.status.cell_min_voltage_mV = 3500;
+
+  datalayer.battery.status.temperature_min_dC=celltemp[0]*10;
+  datalayer.battery.status.temperature_max_dC=celltemp[0]*10;
+
+  for (int idx = 1; idx < 32; idx++) {
+    if(celltemp[idx]*10<datalayer.battery.status.temperature_min_dC) {
+      datalayer.battery.status.temperature_min_dC=celltemp[idx]*10;
+    }
+    if(celltemp[idx]*10>datalayer.battery.status.temperature_max_dC) {
+      datalayer.battery.status.temperature_max_dC=celltemp[idx]*10;
+    }
+  }   
+
+
+  datalayer.battery.status.real_soc = map(mincell, 3100, 4100, 1000, 9000); //3.1v = 10%, 4.1v=90%
+  datalayer.battery.status.cell_max_voltage_mV = maxcell;
+  datalayer.battery.status.cell_min_voltage_mV = mincell;
 
   datalayer.battery.status.active_power_W = 0;  // 0W
 
-  datalayer.battery.status.temperature_min_dC = 50;  // 5.0*C
-
-  datalayer.battery.status.temperature_max_dC = 60;  // 6.0*C
 
   datalayer.battery.status.max_discharge_power_W = 5000;  // 5kW
 
   datalayer.battery.status.max_charge_power_W = 5000;  // 5kW
 
   //Fake that we get CAN messages
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+//  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
   /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB
@@ -135,6 +143,19 @@ void update_values_battery() { /* This function puts fake values onto the parame
 #endif
 }
 
+
+
+
+
+
+void decodetemp(CAN_frame &msg)
+{
+  int CMU = (msg.ID & 0x00F) ;
+  for (int g = 0; g < 4; g++)
+    {
+    celltemp[g+CMU*4] = msg.data.u8[g] - 40;
+    }
+}
 
 
 void decodecandata(int CMU, int Id, CAN_frame &msg, bool Ign){
@@ -284,6 +305,9 @@ void receive_can_battery(CAN_frame rx_frame) {
 
   if (rx_frame.ID > 0x99 && rx_frame.ID < 0x180) {
       decodecan(rx_frame);  
+  }
+  if ((rx_frame.ID & 0xFF0) == 0x180) {
+      decodetemp(rx_frame);  
   }
 }
 
@@ -454,8 +478,13 @@ void send_can_battery() {
 //    }
 
     TEST.ID = 0x080 | (nextmes);
-    TEST.data.u8[0] = 0xC7;
-    TEST.data.u8[1] = 0x10;
+//    TEST.data.u8[0] = 0xC7;
+//    TEST.data.u8[1] = 0x10;
+    TEST.data.u8[0] = 0x00;
+    TEST.data.u8[1] = 0x0F;
+
+//    TEST.data.u8[0] = lowByte((uint16_t((bms.getLowCellVolt()) * 1000) + 5));
+//    TEST.data.u8[1] = highByte((uint16_t((bms.getLowCellVolt()) * 1000) + 5));
 
     TEST.data.u8[2] = 0x00;  //balancing bits
     TEST.data.u8[3] = 0x00;  //balancing bits
@@ -464,7 +493,8 @@ void send_can_battery() {
     TEST.data.u8[4] = 0x20;
     TEST.data.u8[5] = 0x00;
   } else {
-    TEST.data.u8[4] = 0x40;
+//    TEST.data.u8[4] = 0x40;
+    TEST.data.u8[4] = 0x48;
     TEST.data.u8[5] = 0x01;
   }
 
