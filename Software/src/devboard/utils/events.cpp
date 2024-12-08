@@ -44,16 +44,14 @@
 
 typedef struct {
   EVENTS_ENUM_TYPE event;
+  uint8_t millisrolloverCount;
   uint32_t timestamp;
   uint8_t data;
 } EVENT_LOG_ENTRY_TYPE;
 
 typedef struct {
   EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
-  unsigned long time_seconds;
-  MyTimer second_timer;
   MyTimer ee_timer;
-  MyTimer update_timer;
   EVENTS_LEVEL_TYPE level;
   uint16_t event_log_head_index;
   uint16_t event_log_tail_index;
@@ -66,23 +64,31 @@ static EVENT_TYPE events;
 static const char* EVENTS_ENUM_TYPE_STRING[] = {EVENTS_ENUM_TYPE(GENERATE_STRING)};
 static const char* EVENTS_LEVEL_TYPE_STRING[] = {EVENTS_LEVEL_TYPE(GENERATE_STRING)};
 
+static uint32_t lastMillis = millis();
+
 /* Local function prototypes */
-static void update_event_time(void);
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
 static void update_event_level(void);
 static void update_bms_status(void);
 
-static void log_event(EVENTS_ENUM_TYPE event, uint8_t data);
+static void log_event(EVENTS_ENUM_TYPE event, uint8_t millisrolloverCount, uint32_t timestamp, uint8_t data);
 static void print_event_log(void);
 static void check_ee_write(void);
+
+uint8_t millisrolloverCount = 0;
 
 /* Exported functions */
 
 /* Main execution function, should handle various continuous functionality */
 void run_event_handling(void) {
-  update_event_time();
+  uint32_t currentMillis = millis();
+  if (currentMillis < lastMillis) {  // Overflow detected
+    millisrolloverCount++;
+  }
+  lastMillis = currentMillis;
+
   run_sequence_on_target();
-  check_ee_write();
+  //check_ee_write();
   update_event_level();
 }
 
@@ -100,7 +106,7 @@ void init_events(void) {
     EEPROM.writeUShort(EE_EVENT_LOG_TAIL_INDEX_ADDRESS, 0);
 
     // Prepare an empty event block to write
-    EVENT_LOG_ENTRY_TYPE entry = {.event = EVENT_NOF_EVENTS, .timestamp = 0, .data = 0};
+    EVENT_LOG_ENTRY_TYPE entry = {.event = EVENT_NOF_EVENTS, .millisrolloverCount = 0, .timestamp = 0, .data = 0};
 
     // Put the event in (what I guess is) the RAM EEPROM mirror, or write buffer
 
@@ -128,21 +134,30 @@ void init_events(void) {
   for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
     events.entries[i].data = 0;
     events.entries[i].timestamp = 0;
+    events.entries[i].millisrolloverCount = 0;
     events.entries[i].occurences = 0;
     events.entries[i].log = true;
+    events.entries[i].MQTTpublished = false;  // Not published by default
   }
 
   events.entries[EVENT_CANFD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANMCP_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANFD_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_OVERRUN].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_CANFD_RX_OVERRUN].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_RX_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CAN2_RX_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_RX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_RX_WARNING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_TX_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CONTACTOR_WELDED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DISCHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_12V_LOW].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_SOC_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_SOC_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_SOC_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_KWH_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_EMPTY].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_FULL].level = EVENT_LEVEL_INFO;
@@ -154,11 +169,16 @@ void init_events(void) {
   events.entries[EVENT_BATTERY_OVERHEAT].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BATTERY_OVERVOLTAGE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_UNDERVOLTAGE].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_LOW_SOH].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_BATTERY_VALUE_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BATTERY_ISOLATION].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_VOLTAGE_DIFFERENCE].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_SOH_DIFFERENCE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_SOH_LOW].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_HVIL_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_PRECHARGE_FAILURE].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_INTERNAL_OPEN_FAULT].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_INVERTER_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_INTERFACE_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MODBUS_INVERTER_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_ERROR_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CELL_UNDER_VOLTAGE].level = EVENT_LEVEL_ERROR;
@@ -192,13 +212,18 @@ void init_events(void) {
   events.entries[EVENT_RESET_EFUSE].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_RESET_PWR_GLITCH].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_RESET_CPU_LOCKUP].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_PAUSE_BEGIN].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_PAUSE_END].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_WIFI_CONNECT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_WIFI_DISCONNECT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_MQTT_CONNECT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_MQTT_DISCONNECT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_EQUIPMENT_STOP].level = EVENT_LEVEL_ERROR;
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
-  events.second_timer.set_interval(600);
   // Write to EEPROM every X minutes (if an event has been set)
   events.ee_timer.set_interval(EE_WRITE_PERIOD_MINUTES * 60 * 1000);
-  events.update_timer.set_interval(2000);
 }
 
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
@@ -217,20 +242,51 @@ void clear_event(EVENTS_ENUM_TYPE event) {
   }
 }
 
+void reset_all_events() {
+  events.nof_logged_events = 0;
+  for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
+    events.entries[i].data = 0;
+    events.entries[i].state = EVENT_STATE_INACTIVE;
+    events.entries[i].timestamp = 0;
+    events.entries[i].millisrolloverCount = 0;
+    events.entries[i].occurences = 0;
+    events.entries[i].log = true;
+    events.entries[i].MQTTpublished = false;  // Not published by default
+  }
+  events.level = EVENT_LEVEL_INFO;
+  update_bms_status();
+}
+
+void set_event_MQTTpublished(EVENTS_ENUM_TYPE event) {
+  events.entries[event].MQTTpublished = true;
+}
+
 const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
   switch (event) {
     case EVENT_CANFD_INIT_FAILURE:
       return "CAN-FD initialization failed. Check hardware or bitrate settings";
+    case EVENT_CANMCP_INIT_FAILURE:
+      return "CAN-MCP addon initialization failed. Check hardware";
+    case EVENT_CANFD_BUFFER_FULL:
+      return "CAN-FD buffer overflowed. Some CAN messages were not sent. Contact developers.";
     case EVENT_CAN_OVERRUN:
       return "CAN message failed to send within defined time. Contact developers, CPU load might be too high.";
+    case EVENT_CANFD_RX_OVERRUN:
+      return "CAN-FD failed to receive all messages from CAN bus. Contact developers, CPU load might be too high.";
     case EVENT_CAN_RX_FAILURE:
       return "No CAN communication detected for 60s. Shutting down battery control.";
+    case EVENT_CAN2_RX_FAILURE:
+      return "No CAN communication detected for 60s on CAN2. Shutting down the secondary battery control.";
     case EVENT_CANFD_RX_FAILURE:
       return "No CANFD communication detected for 60s. Shutting down battery control.";
     case EVENT_CAN_RX_WARNING:
       return "ERROR: High amount of corrupted CAN messages detected. Check CAN wire shielding!";
     case EVENT_CAN_TX_FAILURE:
       return "ERROR: CAN messages failed to transmit, or no one on the bus to ACK the message!";
+    case EVENT_CAN_INVERTER_MISSING:
+      return "Warning: Inverter not sending messages on CAN bus. Check wiring!";
+    case EVENT_CONTACTOR_WELDED:
+      return "Warning: Contactors sticking/welded. Inspect battery with caution!";
     case EVENT_CHARGE_LIMIT_EXCEEDED:
       return "Info: Inverter is charging faster than battery is allowing.";
     case EVENT_DISCHARGE_LIMIT_EXCEEDED:
@@ -240,7 +296,9 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_12V_LOW:
       return "12V battery source below required voltage to safely close contactors. Inspect the supply/battery!";
     case EVENT_SOC_PLAUSIBILITY_ERROR:
-      return "ERROR: SOC% reported by battery not plausible. Restart battery!";
+      return "Warning: SOC reported by battery not plausible. Restart battery!";
+    case EVENT_SOC_UNAVAILABLE:
+      return "Warning: SOC not sent by BMS. Calibrate BMS via app.";
     case EVENT_KWH_PLAUSIBILITY_ERROR:
       return "Info: kWh remaining reported by battery not plausible. Battery needs cycling.";
     case EVENT_BATTERY_EMPTY:
@@ -267,7 +325,15 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Warning: Battery exceeding maximum design voltage. Discharge battery to prevent damage!";
     case EVENT_BATTERY_UNDERVOLTAGE:
       return "Warning: Battery under minimum design voltage. Charge battery to prevent damage!";
-    case EVENT_LOW_SOH:
+    case EVENT_BATTERY_VALUE_UNAVAILABLE:
+      return "Warning: Battery measurement unavailable. Check 12V power supply and battery wiring!";
+    case EVENT_BATTERY_ISOLATION:
+      return "Warning: Battery reports isolation error. High voltage might be leaking to ground. Check battery!";
+    case EVENT_VOLTAGE_DIFFERENCE:
+      return "Info: Too large voltage diff between the batteries. Second battery cannot join the DC-link";
+    case EVENT_SOH_DIFFERENCE:
+      return "Warning: Large deviation in State of health between packs. Inspect battery.";
+    case EVENT_SOH_LOW:
       return "ERROR: State of health critically low. Battery internal resistance too high to continue. Recycle "
              "battery.";
     case EVENT_HVIL_FAILURE:
@@ -279,6 +345,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "ERROR: High voltage cable removed while battery running. Opening contactors!";
     case EVENT_INVERTER_OPEN_CONTACTOR:
       return "Info: Inverter side opened contactors. Normal operation.";
+    case EVENT_INTERFACE_MISSING:
+      return "Info: Configuration trying to use CAN interface not baked into the software. Recompile software!";
     case EVENT_ERROR_OPEN_CONTACTOR:
       return "Info: Too much time spent in error state. Opening contactors, not safe to continue charging. "
              "Check other error code for reason!";
@@ -347,6 +415,20 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Info: The board was reset due to a detected power glitch";
     case EVENT_RESET_CPU_LOCKUP:
       return "Warning: The board was reset due to CPU lockup. Inform developers!";
+    case EVENT_PAUSE_BEGIN:
+      return "Warning: The emulator is trying to pause the battery.";
+    case EVENT_PAUSE_END:
+      return "Info: The emulator is attempting to resume battery operation from pause.";
+    case EVENT_WIFI_CONNECT:
+      return "Info: Wifi connected.";
+    case EVENT_WIFI_DISCONNECT:
+      return "Info: Wifi disconnected.";
+    case EVENT_MQTT_CONNECT:
+      return "Info: MQTT connected.";
+    case EVENT_MQTT_DISCONNECT:
+      return "Info: MQTT disconnected.";
+    case EVENT_EQUIPMENT_STOP:
+      return "ERROR: EQUIPMENT STOP ACTIVATED!!!";
     default:
       return "";
   }
@@ -382,13 +464,15 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   if ((events.entries[event].state != EVENT_STATE_ACTIVE) &&
       (events.entries[event].state != EVENT_STATE_ACTIVE_LATCHED)) {
     events.entries[event].occurences++;
+    events.entries[event].MQTTpublished = false;
     if (events.entries[event].log) {
-      log_event(event, data);
+      log_event(event, events.entries[event].millisrolloverCount, events.entries[event].timestamp, data);
     }
   }
 
   // We should set the event, update event info
-  events.entries[event].timestamp = events.time_seconds;
+  events.entries[event].timestamp = millis();
+  events.entries[event].millisrolloverCount = millisrolloverCount;
   events.entries[event].data = data;
   // Check if the event is latching
   events.entries[event].state = latched ? EVENT_STATE_ACTIVE_LATCHED : EVENT_STATE_ACTIVE;
@@ -421,6 +505,22 @@ static void update_bms_status(void) {
   }
 }
 
+// Function to compare events by timestamp descending
+bool compareEventsByTimestampDesc(const EventData& a, const EventData& b) {
+  if (a.event_pointer->millisrolloverCount != b.event_pointer->millisrolloverCount) {
+    return a.event_pointer->millisrolloverCount > b.event_pointer->millisrolloverCount;
+  }
+  return a.event_pointer->timestamp > b.event_pointer->timestamp;
+}
+
+// Function to compare events by timestamp ascending
+bool compareEventsByTimestampAsc(const EventData& a, const EventData& b) {
+  if (a.event_pointer->millisrolloverCount != b.event_pointer->millisrolloverCount) {
+    return a.event_pointer->millisrolloverCount < b.event_pointer->millisrolloverCount;
+  }
+  return a.event_pointer->timestamp < b.event_pointer->timestamp;
+}
+
 static void update_event_level(void) {
   EVENTS_LEVEL_TYPE temporary_level = EVENT_LEVEL_INFO;
   for (uint8_t i = 0u; i < EVENT_NOF_EVENTS; i++) {
@@ -431,22 +531,7 @@ static void update_event_level(void) {
   events.level = temporary_level;
 }
 
-static void update_event_time(void) {
-  // This should run roughly 2 times per second
-  if (events.second_timer.elapsed() == true) {
-    uptime::calculateUptime();  // millis() overflows every 50 days, so update occasionally to adjust
-    events.time_seconds = uptime::getDays() * DAYS_TO_SECS;
-    events.time_seconds += uptime::getHours() * HOURS_TO_SECS;
-    events.time_seconds += uptime::getMinutes() * MINUTES_TO_SECS;
-    events.time_seconds += uptime::getSeconds();
-  }
-}
-
-unsigned long get_current_event_time_secs(void) {
-  return events.time_seconds;
-}
-
-static void log_event(EVENTS_ENUM_TYPE event, uint8_t data) {
+static void log_event(EVENTS_ENUM_TYPE event, uint8_t millisrolloverCount, uint32_t timestamp, uint8_t data) {
   // Update head with wrap to 0
   if (++events.event_log_head_index == EE_NOF_EVENT_ENTRIES) {
     events.event_log_head_index = 0;
@@ -464,7 +549,8 @@ static void log_event(EVENTS_ENUM_TYPE event, uint8_t data) {
   int entry_address = EE_EVENT_ENTRY_START_ADDRESS + EE_EVENT_ENTRY_SIZE * events.event_log_head_index;
 
   // Prepare an event block to write
-  EVENT_LOG_ENTRY_TYPE entry = {.event = event, .timestamp = events.time_seconds, .data = data};
+  EVENT_LOG_ENTRY_TYPE entry = {
+      .event = event, .millisrolloverCount = millisrolloverCount, .timestamp = timestamp, .data = data};
 
   // Put the event in (what I guess is) the RAM EEPROM mirror, or write buffer
   EEPROM.put(entry_address, entry);

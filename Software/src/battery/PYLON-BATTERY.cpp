@@ -2,42 +2,32 @@
 #ifdef PYLON_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "PYLON-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent
 
 //Actual content messages
-CAN_frame_t PYLON_3010 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x3010,
-                          .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t PYLON_8200 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x8200,
-                          .data = {0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t PYLON_8210 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x8210,
-                          .data = {0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t PYLON_4200 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4200,
-                          .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame PYLON_3010 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x3010,
+                        .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame PYLON_8200 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x8200,
+                        .data = {0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame PYLON_8210 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x8210,
+                        .data = {0xAA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame PYLON_4200 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4200,
+                        .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 static int16_t celltemperature_max_dC = 0;
 static int16_t celltemperature_min_dC = 0;
@@ -70,12 +60,12 @@ void update_values_battery() {
 
   datalayer.battery.status.current_dA = current_dA;  //value is *10 (150 = 15.0) , invert the sign
 
-  datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
-
   datalayer.battery.status.max_charge_power_W = (max_charge_current * (voltage_dV / 10));
 
   datalayer.battery.status.max_discharge_power_W = (-max_discharge_current * (voltage_dV / 10));
+
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   datalayer.battery.status.cell_max_voltage_mV = cellvoltage_max_mV;
 
@@ -90,9 +80,9 @@ void update_values_battery() {
   datalayer.battery.info.min_design_voltage_dV = discharge_cutoff_voltage;
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     case 0x7310:
     case 0x7311:
       ensemble_info_ack = true;
@@ -173,10 +163,10 @@ void send_can_battery() {
 
     previousMillis1000 = currentMillis;
 
-    ESP32Can.CANWriteFrame(&PYLON_3010);  // Heartbeat
-    ESP32Can.CANWriteFrame(&PYLON_4200);  // Ensemble OR System equipment info, depends on frame0
-    ESP32Can.CANWriteFrame(&PYLON_8200);  // Control device quit sleep status
-    ESP32Can.CANWriteFrame(&PYLON_8210);  // Charge command
+    transmit_can(&PYLON_3010, can_config.battery);  // Heartbeat
+    transmit_can(&PYLON_4200, can_config.battery);  // Ensemble OR System equipment info, depends on frame0
+    transmit_can(&PYLON_8200, can_config.battery);  // Control device quit sleep status
+    transmit_can(&PYLON_8210, can_config.battery);  // Charge command
 
     if (ensemble_info_ack) {
       PYLON_4200.data.u8[0] = 0x00;  //Request system equipment info
@@ -185,12 +175,12 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Pylon battery selected");
-#endif
-
-  datalayer.battery.info.max_design_voltage_dV = 4040;  // 404.0V, charging over this is not possible
-  datalayer.battery.info.min_design_voltage_dV = 3100;  // 310.0V, under this, discharging further is disabled
+  strncpy(datalayer.system.info.battery_protocol, "Pylon compatible battery", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 }
 
 #endif
