@@ -42,8 +42,8 @@ String settings_processor(const String& var) {
 #endif
 
 #ifdef BMW_SBOX
-    content += "<h4 style='color: white;'>Battery #2 interface: <span id='BMW S-BOX'>" +
-               String(getCANInterfaceName(can_config.external_control)) + "</span></h4>";
+    content += "<h4 style='color: white;'>BMW SBOX Interface: <span id='BMW S-BOX'>" +
+               String(getCANInterfaceName(can_config.extcontrol)) + "</span></h4>";
 #endif  //BMW_SBOX
 
     // Close the block

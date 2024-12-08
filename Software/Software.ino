@@ -287,9 +287,6 @@ void core_loop(void* task_time_us) {
 #ifdef RS485_INVERTER_SELECTED
     receive_RS485();  // Process serial2 RS485 interface
 #endif
-#ifdef BYD_KOSTAL_RS485
-    run_kostal_byd();
-#endif
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
     runSerialDataLink();
 #endif

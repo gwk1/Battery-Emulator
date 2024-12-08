@@ -4,6 +4,8 @@
 
 #ifdef BMW_SBOX
 #include "BMW-SBOX.h"
+void receive_can_external(CAN_frame rx_frame);
+void send_can_external();
 #endif
 
 #ifdef BMW_I3_BATTERY
