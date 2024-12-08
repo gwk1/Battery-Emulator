@@ -4,6 +4,12 @@
 #include "../include.h"
 
 typedef struct {
+  int16_t balance_mv = 0;
+  boolean balancestatus = 0;
+} DATALAYER_INFO_BMWPHEV;
+
+
+typedef struct {
   /** uint16_t */
   /** Terminal 30 - 12V SME Supply Voltage */
   uint16_t T30_Voltage = 0;
@@ -292,6 +298,7 @@ typedef struct {
 
 class DataLayerExtended {
  public:
+  DATALAYER_INFO_BMWPHEV bmwphev;
   DATALAYER_INFO_BMWIX bmwix;
   DATALAYER_INFO_BMWI3 bmwi3;
   DATALAYER_INFO_BYDATTO3 bydAtto3;

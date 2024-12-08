@@ -16,6 +16,11 @@ String advanced_battery_processor(const String& var) {
     // Start a new block with a specific background color
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
+#ifdef BMW_PHEV_BATTERY
+    content +=
+        "<h4>Requested balancing setpoint: " + String(datalayer_extended.bmwphev.balance_mv) +" dV</h4>";
+#endif  //BMW_PHEV_BATTERY
+
 #ifdef BMW_IX_BATTERY
     content +=
         "<h4>Battery Voltage after Contactor: " + String(datalayer_extended.bmwix.battery_voltage_after_contactor) +
@@ -387,7 +392,7 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>soc max: " + String(datalayer_extended.zoePH2.battery_soc_max) + "</h4>";
 #endif  //RENAULT_ZOE_GEN2_BATTERY
 
-#if !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) && \
+#if !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY)&& !defined(BMW_PHEV_BATTERY) && \
     !defined(BYD_ATTO_3_BATTERY) && !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS)
     content += "No extra information available for this battery type";
 #endif
