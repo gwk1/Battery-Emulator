@@ -734,6 +734,10 @@ void send_can() {
 #ifdef CHARGER_SELECTED
   send_can_charger();
 #endif  // CHARGER_SELECTED
+
+#ifdef EXTERNAL_SELECTED
+  send_can_external();
+#endif  // EXTERNAL_SELECTED
 }
 
 #ifdef DUAL_CAN
@@ -1228,4 +1232,10 @@ void receive_can(CAN_frame* rx_frame, int interface) {
     receive_can_charger(*rx_frame);
 #endif
   }
+  if (interface == can_config.extcontrol) {
+#ifdef EXTERNAL_SELECTED
+    receive_can_external(*rx_frame);
+#endif
+  }
+
 }

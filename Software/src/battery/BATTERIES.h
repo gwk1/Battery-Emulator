@@ -2,6 +2,10 @@
 #define BATTERIES_H
 #include "../../USER_SETTINGS.h"
 
+#ifdef BMW_SBOX
+#include "BMW-SBOX.h"
+#endif
+
 #ifdef BMW_I3_BATTERY
 #include "BMW-I3-BATTERY.h"
 #endif

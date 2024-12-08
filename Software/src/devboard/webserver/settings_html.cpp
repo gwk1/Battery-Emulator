@@ -41,6 +41,11 @@ String settings_processor(const String& var) {
     content += "<h4 style='color: white;'>Inverter interface: RS485<span id='Inverter'></span></h4>";
 #endif
 
+#ifdef BMW_SBOX
+    content += "<h4 style='color: white;'>Battery #2 interface: <span id='BMW S-BOX'>" +
+               String(getCANInterfaceName(can_config.external_control)) + "</span></h4>";
+#endif  //BMW_SBOX
+
     // Close the block
     content += "</div>";
 
