@@ -142,7 +142,7 @@ typedef struct {
   CAN_Interface inverter;
   CAN_Interface battery_double;
   CAN_Interface charger;
-  CAN_Interface extcontrol;
+  CAN_Interface shunt;
 } CAN_Configuration;
 extern volatile CAN_Configuration can_config;
 extern volatile uint8_t AccessPointEnabled;
