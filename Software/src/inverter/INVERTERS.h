@@ -19,6 +19,10 @@
 #include "BYD-SMA.h"
 #endif
 
+#ifdef BYD_KOSTAL_RS485
+#include "KOSTAL-RS485.h"
+#endif
+
 #ifdef FOXESS_CAN
 #include "FOXESS-CAN.h"
 #endif
@@ -53,10 +57,6 @@
 
 #ifdef SOLAX_CAN
 #include "SOLAX-CAN.h"
-#endif
-
-#ifdef BYD_KOSTAL_RS485
-#include "KOSTAL-RS485.h"
 #endif
 
 #ifdef SERIAL_LINK_TRANSMITTER
