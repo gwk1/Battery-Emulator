@@ -41,10 +41,10 @@ String settings_processor(const String& var) {
     content += "<h4 style='color: white;'>Inverter interface: RS485<span id='Inverter'></span></h4>";
 #endif
 
-#ifdef BMW_SBOX
-    content += "<h4 style='color: white;'>BMW SBOX Interface: <span id='BMW S-BOX'>" +
-               String(getCANInterfaceName(can_config.extcontrol)) + "</span></h4>";
-#endif  //BMW_SBOX
+#ifdef CAN_SHUNT_SELECTED
+    content += "<h4 style='color: white;'>Shunt Interface: <span id='BMW S-BOX'>" +
+               String(getCANInterfaceName(can_config.shunt)) + "</span></h4>";
+#endif  //CAN_SHUNT_SELECTED
 
     // Close the block
     content += "</div>";

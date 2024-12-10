@@ -200,6 +200,9 @@ void setup() {
 #ifdef EQUIPMENT_STOP_BUTTON
   init_equipment_stop_button();
 #endif
+#ifdef CAN_SHUNT_SELECTED
+  setup_can_shunt();
+#endif
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
 
@@ -732,9 +735,9 @@ void send_can() {
   send_can_charger();
 #endif  // CHARGER_SELECTED
 
-#ifdef EXTERNAL_SELECTED
-  send_can_external();
-#endif  // EXTERNAL_SELECTED
+#ifdef CAN_SHUNT_SELECTED
+  send_can_shunt();
+#endif  // CAN_SHUNT_SELECTED
 }
 
 #ifdef DUAL_CAN
@@ -1229,10 +1232,9 @@ void receive_can(CAN_frame* rx_frame, int interface) {
     receive_can_charger(*rx_frame);
 #endif
   }
-  if (interface == can_config.extcontrol) {
-#ifdef EXTERNAL_SELECTED
-    receive_can_external(*rx_frame);
+  if (interface == can_config.shunt) {
+#ifdef CAN_SHUNT_SELECTED
+    receive_can_shunt(*rx_frame);
 #endif
   }
-
 }
