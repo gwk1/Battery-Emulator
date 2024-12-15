@@ -17,7 +17,6 @@ static unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Me
 CRC8 crc8;
 const uint8_t finalxor[12] = { 0xCF, 0xF5, 0xBB, 0x81, 0x27, 0x1D, 0x53, 0x69, 0x02, 0x38, 0x76, 0x4C };
 
-
 uint8_t Imod, mescycle = 0;
 uint8_t nextmes = 0;
 uint8_t testcycle = 0;
@@ -34,7 +33,6 @@ uint16_t MaxCell_mV;
 
 int8_t celltemp[32];
 
-
 CAN_frame TEST = {.FD = false,
   .ext_ID = false,
   .DLC = 8,
@@ -46,7 +44,6 @@ void print_units(char* header, int value, char* units) {
   Serial.print(value);
   Serial.print(units);
 }
-
 
 void printCanFrame(CAN_frame msg){
   Serial.print(" RX ");
@@ -64,9 +61,7 @@ void printCanFrame(CAN_frame msg){
 void update_values_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
 
   datalayer.system.status.battery_allows_contactor_closing = true;
-
-  datalayer.battery.info.number_of_cells = 96;
-
+  datalayer.battery.info.number_of_cells = CELLS_PER_MODULE*MODULES_PER_STRING*PARALLEL_STRINGS;
   datalayer.battery.status.soh_pptt = 9900;  // 99.00%
 
   //datalayer.battery.status.voltage_dV = 3700;  // 370.0V , value set in startup in .ino file, editable via webUI
@@ -75,7 +70,6 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
   datalayer.battery.info.total_capacity_Wh = 9000;  // 30kWh
 
-  datalayer.battery.status.remaining_capacity_Wh = 8000;  // 15kWh
 
   MinCell_mV=datalayer.battery.status.cell_voltages_mV[0];
   MaxCell_mV=datalayer.battery.status.cell_voltages_mV[0];
@@ -91,19 +85,19 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
 
 //datalayer_extended.bmwphev.needbalanc
-  if (MinCell_mV <= MaxCell_mV - 10) {
-     datalayer_extended.bmwphev.balancestatus=1;
+  if ((MinCell_mV <= MaxCell_mV - 15) && MaxCell_mV > 3920 && datalayer_extended.bmwphev.balancing_allowed ) {
+     datalayer_extended.bmwphev.balancing_active=1;
      if (MinCell_mV > 3900) {
-       datalayer_extended.bmwphev.balance_mv=MinCell_mV+10;
+       datalayer_extended.bmwphev.balance_target_mV=MinCell_mV+5;
      }
      else {
-       datalayer_extended.bmwphev.balance_mv=3910;
+       datalayer_extended.bmwphev.balance_target_mV=3910;
        }
   }
   else
     {
-    datalayer_extended.bmwphev.balancestatus=0;
-    datalayer_extended.bmwphev.balance_mv=4200;
+    datalayer_extended.bmwphev.balancing_active=0;
+    datalayer_extended.bmwphev.balance_target_mV=4220;
   }
   datalayer.battery.status.temperature_min_dC=celltemp[0]*10;
   datalayer.battery.status.temperature_max_dC=celltemp[0]*10;
@@ -117,25 +111,20 @@ void update_values_battery() { /* This function puts fake values onto the parame
     }
   }   
 
-
-
   datalayer.battery.status.real_soc = map(MinCell_mV, 3100, 4100, 1000, 9000); //3.1v = 10%, 4.1v=90%
   datalayer.battery.status.cell_max_voltage_mV = MaxCell_mV;
   datalayer.battery.status.cell_min_voltage_mV = MinCell_mV;
 
-  datalayer.battery.status.active_power_W = 0;  // 0W
+  datalayer.battery.status.remaining_capacity_Wh = datalayer.battery.info.total_capacity_Wh / 100 * datalayer.battery.status.real_soc;
 
 
+//  datalayer.battery.status.active_power_W = 0;  // 0W
   datalayer.battery.status.max_discharge_power_W = 5000;  // 5kW
-
   datalayer.battery.status.max_charge_power_W = 5000;  // 5kW
-
-  //Fake that we get CAN messages
-//  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
   /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB
-  Serial.println("FAKE Values going to inverter");
+  Serial.println("Values going to inverter");
   print_units("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
   print_units(", SOC%: ", (datalayer.battery.status.reported_soc * 0.01), "% ");
   print_units(", Voltage: ", (datalayer.battery.status.voltage_dV * 0.1), "V ");
@@ -158,16 +147,16 @@ void decodetemp(CAN_frame &msg)
     }
 }
 
-void decodecandata(int CMU, int Id, CAN_frame &msg, bool Ign){
+void decodecandata(int CMU, int Id, CAN_frame &msg){
   if (Id==0) {
-//      modules[CMU].error = msg.data.u8[0] + (msg.data.u8[1] << 8) + (msg.data.u8[2] << 16) + (msg.data.u8[3] << 24);
-//      modules[CMU].balstat = (msg.data.u8[5]<< 8) + msg.data.u8[4];
+    datalayer_extended.bmwphev.error[CMU] = msg.data.u8[0] + (msg.data.u8[1] << 8) + (msg.data.u8[2] << 16) + (msg.data.u8[3] << 24);
+    datalayer_extended.bmwphev.balance_status[CMU] = (msg.data.u8[5]<< 8) + msg.data.u8[4];
 /*      Serial.print("Error: ");
     Serial.println(modules[CMU].error);
     Serial.print("Bal state: ");
     Serial.println(modules[CMU].balstat);*/
     }
-  int BASE=(CMU-1)*16+(Id-1)*3;
+  int BASE=(CMU)*16+(Id-1)*3;
     //transmit_can(&TEST, can_config.battery);
   //printCanFrame(msg);
   if (0<Id & Id<6)
@@ -186,7 +175,7 @@ void decodecandata(int CMU, int Id, CAN_frame &msg, bool Ign){
 void decodecan(CAN_frame &msg)
 {
   int Id = (msg.ID & 0x0F0);
-  int CMU = (msg.ID & 0x00F) + 1;
+  int CMU = (msg.ID & 0x00F);
 
   switch (Id)
   {
@@ -222,8 +211,7 @@ void decodecan(CAN_frame &msg)
     Serial.print(",");
     Serial.print(Id);
     Serial.println();*/
-    boolean BalIgnore=0;
-      decodecandata(CMU,Id, msg, BalIgnore);
+    decodecandata(CMU,Id, msg);
     }
 }
 
@@ -438,13 +426,13 @@ void send_can_battery() {
     TEST.ID = 0x080 | (nextmes);
 
 
-    if(!datalayer_extended.bmwphev.balancestatus) {
+    if(!datalayer_extended.bmwphev.balancing_active) {
       TEST.data.u8[0] = 0xC7;
       TEST.data.u8[1] = 0x10;
     }
     else {
-      TEST.data.u8[0] = lowByte(datalayer_extended.bmwphev.balance_mv);
-      TEST.data.u8[1] = highByte(datalayer_extended.bmwphev.balance_mv);
+      TEST.data.u8[0] = lowByte(datalayer_extended.bmwphev.balance_target_mV);
+      TEST.data.u8[1] = highByte(datalayer_extended.bmwphev.balance_target_mV);
     }
 
     TEST.data.u8[2] = 0x00;  //balancing bits
@@ -454,7 +442,7 @@ void send_can_battery() {
     TEST.data.u8[4] = 0x20;
     TEST.data.u8[5] = 0x00;
   } else {
-    if(!datalayer_extended.bmwphev.balancestatus) {
+    if(!datalayer_extended.bmwphev.balancing_active) {
       TEST.data.u8[4] = 0x40;
     }
     else {
