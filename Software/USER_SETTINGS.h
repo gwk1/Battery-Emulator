@@ -19,6 +19,7 @@
 //#define KIA_HYUNDAI_64_BATTERY
 //#define KIA_E_GMP_BATTERY
 //#define KIA_HYUNDAI_HYBRID_BATTERY
+//#define MEB_BATTERY
 //#define MG_5_BATTERY
 //#define NISSAN_LEAF_BATTERY
 //#define PYLON_BATTERY
@@ -50,18 +51,22 @@
 //#define SMA_TRIPOWER_CAN //Enable this line to emulate a "SMA Home Storage battery" over CAN bus
 //#define SOFAR_CAN        //Enable this line to emulate a "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame)" over CAN bus
 //#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
-#define BYD_KOSTAL_RS485 //Enable this line to emulate a "BYD battery" uning kostal protocol over RS485 bus
+//#define BYD_KOSTAL_RS485 //Enable this line to emulate a "BYD battery" uning kostal protocol over RS485 bus
 
 /* Select hardware used for Battery-Emulator */
 #define HW_LILYGO
 //#define HW_STARK
 //#define HW_3LB
 
+#define BMW_SBOX
 /* Contactor settings. If you have a battery that does not activate contactors via CAN, configure this section */
 //#define CONTACTOR_CONTROL     //Enable this line to have the emulator handle automatic precharge/contactor+/contactor- closing sequence (See wiki for pins)
 //#define CONTACTOR_CONTROL_DOUBLE_BATTERY //Enable this line to have the emulator hardware control secondary set of contactors for double battery setups (See wiki for pins)
 //#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM for CONTACTOR_CONTROL, which lowers power consumption and heat generation. CONTACTOR_CONTROL must be enabled.
 //#define NC_CONTACTORS         //Enable this line to control normally closed contactors. CONTACTOR_CONTROL must be enabled for this option. Extremely rare setting!
+
+/* External control box */
+#define BMW_SBOX             // SBOX relay control & battery current/voltage measurement 
 
 /* Other options */
 //#define DEBUG_VIA_USB  //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)
@@ -137,6 +142,7 @@ typedef struct {
   CAN_Interface inverter;
   CAN_Interface battery_double;
   CAN_Interface charger;
+  CAN_Interface shunt;
 } CAN_Configuration;
 extern volatile CAN_Configuration can_config;
 extern volatile uint8_t AccessPointEnabled;
