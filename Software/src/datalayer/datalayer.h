@@ -124,11 +124,11 @@ typedef struct {
   uint16_t measured_voltage_dV = 0;
   /** measured amperage in deciAmperes. 300 = 30.0 A */
   uint16_t measured_amperage_dA = 0;
-  /** measured battery voltage in mV (S-BOX) **/ 
+  /** measured battery voltage in mV (S-BOX) **/
   uint32_t measured_voltage_mV = 0;
-  /** measured output voltage in mV (eg. S-BOX) **/ 
+  /** measured output voltage in mV (eg. S-BOX) **/
   uint32_t measured_outvoltage_mV = 0;
-  /** measured amperage in mA (eg. S-BOX) **/ 
+  /** measured amperage in mA (eg. S-BOX) **/
   uint32_t measured_amperage_mA = 0;
   /** True if the contactor controlled by battery-emulator is closed */
   bool contactors_engaged = false;
