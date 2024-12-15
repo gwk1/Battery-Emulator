@@ -18,7 +18,23 @@ String advanced_battery_processor(const String& var) {
 
 #ifdef BMW_PHEV_BATTERY
     content +=
-        "<h4>Requested balancing setpoint: " + String(datalayer_extended.bmwphev.balance_mv) +" dV</h4>";
+        "<h4>Balancing setPoint: " + String(datalayer_extended.bmwphev.balance_target_mV) +" mV</h4>" +
+        "<h4>Balancing active: " + String(datalayer_extended.bmwphev.balancing_active) +"</h4>" +
+        "<h4>Balancing status: " + String(datalayer_extended.bmwphev.balance_status[0],BIN) +"</h4>"+
+        "<h4>Balancing status: " + String(datalayer_extended.bmwphev.balance_status[1],BIN) +"</h4>"+
+        "<h4>Balancing status: " + String(datalayer_extended.bmwphev.balance_status[2],BIN) +"</h4>"+
+        "<h4>Balancing status: " + String(datalayer_extended.bmwphev.balance_status[3],BIN) +"</h4>"+
+        "<h4>Balancing status: " + String(datalayer_extended.bmwphev.balance_status[4],BIN) +"</h4>"+
+        "<h4>Balancing status: " + String(datalayer_extended.bmwphev.balance_status[5],BIN) +"</h4>"+
+        "<h4>Balancing status: " + String(datalayer_extended.bmwphev.balance_status[6],BIN) +"</h4>"+
+        "<h4>Balancing status: " + String(datalayer_extended.bmwphev.balance_status[7],BIN) +"</h4>"+
+        "<h4>Balancing status: " + String(datalayer_extended.bmwphev.balance_status[8],BIN) +"</h4>"+
+        "<h4>Balancing status: " + String(datalayer_extended.bmwphev.balance_status[9],BIN) +"</h4>"+
+        "<h4>Balancing status: " + String(datalayer_extended.bmwphev.balance_status[10],BIN) +"</h4>"+
+        "<h4>Balancing status: " + String(datalayer_extended.bmwphev.balance_status[11],BIN) +"</h4>";
+
+
+        
 #endif  //BMW_PHEV_BATTERY
 
 #ifdef BMW_IX_BATTERY

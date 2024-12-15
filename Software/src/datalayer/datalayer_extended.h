@@ -4,10 +4,15 @@
 #include "../include.h"
 
 typedef struct {
-  int16_t balance_mv = 0;
-  boolean balancestatus = 0;
+  int16_t balance_target_mV = 4220;
+  /** Balancing active **/
+  boolean balancing_active = 0;
+  boolean balancing_allowed = 0;
+  /** Cell balancing status, 16 cells per module, up to 12 modules **/
+  int16_t balance_status[12];
+  /** CMU errors bits, up to 12 modules **/
+  int32_t error[12];
 } DATALAYER_INFO_BMWPHEV;
-
 
 typedef struct {
   /** uint16_t */
