@@ -197,11 +197,16 @@ void update_RS485_registers_inverter() {
     average_temperature_dC = 0;
   }
 
-  if (datalayer.system.status.battery_allows_contactor_closing & datalayer.system.status.inverter_allows_contactor_closing ) {
+/*  if (datalayer.system.status.battery_allows_contactor_closing & datalayer.system.status.inverter_allows_contactor_closing ) {
     float2frame(CyclicData, (float)datalayer.battery.status.voltage_dV / 10, 6);  // Confirmed OK mapping
   } else {
     float2frame(CyclicData, 0.0, 6);
   }
+*/
+
+
+  float2frame(CyclicData, (float)datalayer.shunt.measured_outvoltage_mV / 1000, 6);  // Confirmed OK mapping
+
   // Set nominal voltage to value between min and max voltage set by battery (Example 400 and 300 results in 350V)
   nominal_voltage_dV =
       (((datalayer.battery.info.max_design_voltage_dV - datalayer.battery.info.min_design_voltage_dV) / 2) +
@@ -308,9 +313,10 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
               }
               if (RS485_RXFRAME[6] == 0x5E) {
                 // Set State function
-                if (RS485_RXFRAME[7] == 0x01) {
+                if (RS485_RXFRAME[7] == 0x00) {
                   // State X
                   Serial.println("STATE A");
+                  datalayer.system.status.inverter_allows_contactor_closing = true;
 
                 }
                 else if (RS485_RXFRAME[7] == 0x04) {
