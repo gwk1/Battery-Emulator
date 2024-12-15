@@ -4,6 +4,17 @@
 #include "../include.h"
 
 typedef struct {
+  int16_t balance_target_mV = 4220;
+  /** Balancing active **/
+  boolean balancing_active = 0;
+  boolean balancing_allowed = 0;
+  /** Cell balancing status, 16 cells per module, up to 12 modules **/
+  int16_t balance_status[12];
+  /** CMU errors bits, up to 12 modules **/
+  int32_t error[12];
+} DATALAYER_INFO_BMWPHEV;
+
+typedef struct {
   /** uint16_t */
   /** Terminal 30 - 12V SME Supply Voltage */
   uint16_t T30_Voltage = 0;
@@ -398,6 +409,7 @@ typedef struct {
 
 class DataLayerExtended {
  public:
+  DATALAYER_INFO_BMWPHEV bmwphev;
   DATALAYER_INFO_BMWIX bmwix;
   DATALAYER_INFO_BMWI3 bmwi3;
   DATALAYER_INFO_BYDATTO3 bydAtto3;

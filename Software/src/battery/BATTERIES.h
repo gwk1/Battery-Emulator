@@ -107,6 +107,10 @@ void setup_can_shunt();
 #include "VOLVO-SPA-BATTERY.h"
 #endif
 
+#ifdef BMW_PHEV_BATTERY
+#include "BMW-PHEV-BATTERY.h"
+#endif
+
 #ifdef SERIAL_LINK_RECEIVER
 #include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
 #endif
