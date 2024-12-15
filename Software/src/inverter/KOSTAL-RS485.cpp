@@ -222,18 +222,35 @@ void update_RS485_registers_inverter() {
   float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 22);
 
 
-//  float2frame(CyclicData, (float)discharge_current_dA / 10, 26);
-  float2frame(CyclicData, (float)0.2, 26);
+
+  if (shunt.contactor_engaged)
+    {
+    CyclicData[59]=2;
+    }
+  else
+    {
+    CyclicData[59]=0;
+    }
+
+  if (datalayer.shunt.precharging || datalayer.shunt.contactor_engaged)
+    {
+    CyclicData[56]=1;
+    float2frame(CyclicData, (float)discharge_current_dA / 10, 26);
+    float2frame(CyclicData, (float)charge_current_dA / 10, 34);
+    }
+  else
+    {
+    CyclicData[56]=0;
+    float2frame(CyclicData, 0.0, 26);
+    float2frame(CyclicData, 0.0, 34);
+    }
 
   float2frame(CyclicData, (float)(datalayer.battery.info.total_capacity_Wh/nominal_voltage_dV*10), 30);  // BAttery capacity Ah
 
 
-  // When SOC = 100%, drop down allowed charge current down.
-
+// When SOC = 100%, drop down allowed charge current down.
 //  if ((datalayer.battery.status.reported_soc / 100) < 100) {
-//    float2frame(CyclicData, (float)charge_current_dA / 10, 34);
 //  } else {
-    float2frame(CyclicData, 0.0, 34);
 //  }
 
   float2frame(CyclicData, (float)datalayer.battery.status.temperature_max_dC / 10, 38);

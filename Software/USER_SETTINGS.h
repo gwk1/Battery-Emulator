@@ -51,14 +51,13 @@
 //#define SMA_TRIPOWER_CAN //Enable this line to emulate a "SMA Home Storage battery" over CAN bus
 //#define SOFAR_CAN        //Enable this line to emulate a "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame)" over CAN bus
 //#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
-//#define BYD_KOSTAL_RS485 //Enable this line to emulate a "BYD battery" uning kostal protocol over RS485 bus
+#define BYD_KOSTAL_RS485 //Enable this line to emulate a "BYD battery" uning kostal protocol over RS485 bus
 
 /* Select hardware used for Battery-Emulator */
 #define HW_LILYGO
 //#define HW_STARK
 //#define HW_3LB
 
-#define BMW_SBOX
 /* Contactor settings. If you have a battery that does not activate contactors via CAN, configure this section */
 //#define CONTACTOR_CONTROL     //Enable this line to have the emulator handle automatic precharge/contactor+/contactor- closing sequence (See wiki for pins)
 //#define CONTACTOR_CONTROL_DOUBLE_BATTERY //Enable this line to have the emulator hardware control secondary set of contactors for double battery setups (See wiki for pins)
@@ -66,7 +65,7 @@
 //#define NC_CONTACTORS         //Enable this line to control normally closed contactors. CONTACTOR_CONTROL must be enabled for this option. Extremely rare setting!
 
 /* Shunt/Contactor settings */
-//#define BMW_SBOX             // SBOX relay control & battery current/voltage measurement 
+#define BMW_SBOX             // SBOX relay control & battery current/voltage measurement 
 
 /* Other options */
 //#define DEBUG_VIA_USB  //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)
