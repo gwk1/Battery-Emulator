@@ -223,7 +223,7 @@ void update_RS485_registers_inverter() {
 
 
 
-  if (shunt.contactor_engaged)
+  if (datalayer.shunt.contactors_engaged)
     {
     CyclicData[59]=2;
     }
@@ -232,7 +232,7 @@ void update_RS485_registers_inverter() {
     CyclicData[59]=0;
     }
 
-  if (datalayer.shunt.precharging || datalayer.shunt.contactor_engaged)
+  if (datalayer.shunt.precharging || datalayer.shunt.contactors_engaged)
     {
     CyclicData[56]=1;
     float2frame(CyclicData, (float)discharge_current_dA / 10, 26);
