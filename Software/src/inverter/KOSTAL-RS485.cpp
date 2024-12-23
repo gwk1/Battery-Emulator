@@ -22,6 +22,7 @@ static unsigned long currentMillis;
 static unsigned long startupMillis = 0;
 static unsigned long contactorMillis = 0;
 
+static uint8_t rx_index = 0;
 static boolean RX_allow = false;
 
 union f32b {
@@ -55,11 +56,9 @@ uint8_t CyclicData[64] = {
   0x00, 0x00, 0xAC, 0x41,  // BAttery Temperature        (2 byte float)       Modbus register 214, Bytes 16-17
   0x00, 0x00, 0x00, 0x00,  // Peak Current (1s period?),  Bytes 18-21 
   0x00, 0x00, 0x00, 0x00,  // Avg current  (1s period?),  Bytes 22-25
-  0x00, 0x00, 0x48, 0x42,  // Max discharge current (2 byte float), Bit 26-29,
-  // Sunspec: ADisChaMax
+  0x00, 0x00, 0x48, 0x42,  // Max discharge current (2 byte float), Bit 26-29,  // Sunspec: ADisChaMax
   0x00, 0x00, 0xC8, 0x41,  // Battery gross capacity, Ah (2 byte float) , Bytes 30-33, Modbus 512
-  0x00, 0x00, 0xA0, 0x41,  // Max charge current (2 byte float) Bit 36-37, ZERO WHEN SOC=100
-  // Sunspec: AChaMax
+  0x00, 0x00, 0xA0, 0x41,  // Max charge current (2 byte float) Bit 36-37, ZERO WHEN SOC=100  // Sunspec: AChaMax
   0xCD, 0xCC, 0xB4, 0x41,  // MaxCellTemp (4 byte float) Bit 38-41
   0x00, 0x00, 0xA4, 0x41,  // MinCellTemp (4 byte float) Bit 42-45
   0xA4, 0x70, 0x55, 0x40,  // MaxCellVolt  (float), Bit 46-49
@@ -67,11 +66,11 @@ uint8_t CyclicData[64] = {
 
   0xFE, 0x04,              // Cycle count, 
   0x00,                    // Byte 56
-  0x00,                    // When SOC=100 Byte57=0x40, at startup 0x03 (about 7 times), otherwise 0x02
+  0x00,                    // When SOC=100 Byte57 seen as 0x40, 
   0x64,                    // SOC , Bit 58
   0x00,                    // Unknown,
   0x00,                    // Unknown,
-  0x00,                    // Unknown,
+  0x01,                    // Unknown, Byte 61, 1 only at first frame
   0x00,                    // CRC (inverted sum of bytes 1-62 + 0xC0), Bit 62
   0x00};
 
@@ -218,46 +217,38 @@ void update_RS485_registers_inverter() {
 
   float2frame(CyclicData, (float)average_temperature_dC / 10, 14);
 
-  //  Some current values causes communication error, must be resolved, why.
-
 #ifdef BMW_SBOX
   float2frame(CyclicData, (float)(datalayer.shunt.measured_amperage_mA/100) / 10, 18); 
   float2frame(CyclicData, (float)(datalayer.shunt.measured_avg1S_amperage_mA/100) / 10, 22);
-#else
-  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 18); 
-  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 22);
-#endif
 
-  if (datalayer.shunt.contactors_engaged)
-  {
+  if (datalayer.shunt.contactors_engaged)  {
     CyclicData[59]=2;
   }
-  else
-  {
+  else  {
     CyclicData[59]=0;
   }
 
-  if (datalayer.shunt.precharging || datalayer.shunt.contactors_engaged)
-  {
+  if (datalayer.shunt.precharging || datalayer.shunt.contactors_engaged)  {
     CyclicData[56]=1;
-    float2frame(CyclicData, (float)discharge_current_dA / 10, 26);
-    float2frame(CyclicData, (float)charge_current_dA / 10, 34);
+    float2frame(CyclicData, (float)discharge_current_dA / 10, 26);  // Maximum discharge current
+    float2frame(CyclicData, (float)charge_current_dA / 10, 34);     // Maximum charge current
   }
-  else
-  {
+  else  {
     CyclicData[56]=0;
     float2frame(CyclicData, 0.0, 26);
     float2frame(CyclicData, 0.0, 34);
   }
 
+#else
+  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 18); 
+  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 22);
+
+ /** Add here startup manipulation (bytes 56 & 59 and charge/discharge currents **/
+
+#endif
+
+
   float2frame(CyclicData, (float)(datalayer.battery.info.total_capacity_Wh/nominal_voltage_dV*10), 30);  // BAttery capacity Ah
-
-
-  // When SOC = 100%, drop down allowed charge current down.
-  //  if ((datalayer.battery.status.reported_soc / 100) < 100) {
-  //  } else {
-  //  }
-
   float2frame(CyclicData, (float)datalayer.battery.status.temperature_max_dC / 10, 38);
   float2frame(CyclicData, (float)datalayer.battery.status.temperature_min_dC / 10, 42);
 
@@ -267,7 +258,6 @@ void update_RS485_registers_inverter() {
   CyclicData[58] = (byte)(datalayer.battery.status.reported_soc / 100);  // Confirmed OK mapping
 
   register_content_ok = true;
-
 
   if (incoming_message_counter > 0) {
     incoming_message_counter--;
@@ -280,7 +270,6 @@ void update_RS485_registers_inverter() {
   }
 }
 
-static uint8_t rx_index = 0;
 
 void receive_RS485()  // Runs as fast as possible to handle the serial stream
 {
@@ -293,18 +282,6 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
     RX_allow = true;
   }
 
-  //  if (startupMillis) {
-  //    if (((currentMillis - startupMillis) >= INTERVAL_2_S & currentMillis - startupMillis <= 7000) &
-  //      datalayer.system.status.inverter_allows_contactor_closing) {
-  // Disconnect allowed only, when curren zero
-  //      if (datalayer.battery.status.current_dA == 0) {
-  //        datalayer.system.status.inverter_allows_contactor_closing = false;
-  //      }
-  //    } else if (((currentMillis - startupMillis) >= 7000) &
-  //               datalayer.system.status.inverter_allows_contactor_closing == false) {
-  //      datalayer.system.status.inverter_allows_contactor_closing = true;
-  //    }
-  //  }
   if (Serial2.available()) {
     RS485_RXFRAME[rx_index] = Serial2.read();
     if (RX_allow) {
@@ -331,16 +308,16 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
                 // Set State function
                 if (RS485_RXFRAME[7] == 0x00) {
                   // State X
-                  Serial.println("STATE A");
+                  // Serial.println("STATE A");
                   datalayer.system.status.inverter_allows_contactor_closing = true;
 
                 }
                 else if (RS485_RXFRAME[7] == 0x04) {
                   // INVALID
-                  Serial.println("INVALID STATE");
+                  // Serial.println("INVALID STATE");
                 }
                 else {
-                  Serial.println("STATE B");
+                  // Serial.println("STATE B");
                   // State Y
                 }
                 send_kostal(frame4, 8); // ACK
@@ -364,6 +341,7 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
                   tmpframe[62] = calculate_kostal_crc(tmpframe, 62);
                   scramble_null_bytes(tmpframe,64);
                   send_kostal(tmpframe, 64);
+                  CyclicData[61]=0x00;
                 }
                 if (code == 0x84a) {
                   //Send  battery info
