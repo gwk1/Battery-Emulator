@@ -12,7 +12,7 @@ typedef struct {
   int16_t balance_status[12];
   /** CMU errors bits, up to 12 modules **/
   int32_t error[12];
-} DATALAYER_INFO_BMWPHEV;
+} DATALAYER_INFO_BMWPHEVCSC;
 
 typedef struct {
   /** uint16_t */
@@ -409,7 +409,7 @@ typedef struct {
 
 class DataLayerExtended {
  public:
-  DATALAYER_INFO_BMWPHEV bmwphev;
+  DATALAYER_INFO_BMWPHEVCSC bmwphevcsc;
   DATALAYER_INFO_BMWIX bmwix;
   DATALAYER_INFO_BMWI3 bmwi3;
   DATALAYER_INFO_BYDATTO3 bydAtto3;

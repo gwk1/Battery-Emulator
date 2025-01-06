@@ -33,7 +33,8 @@
 //#define TESLA_MODEL_SX_BATTERY
 //#define TESLA_MODEL_3Y_BATTERY
 //#define VOLVO_SPA_BATTERY
-#define TEST_FAKE_BATTERY
+#define BMW_PHEV_CSC_BATTERY
+//#define TEST_FAKE_BATTERY
 //#define DOUBLE_BATTERY  //Enable this line if you use two identical batteries at the same time (requires DUAL_CAN setup)
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
@@ -82,9 +83,9 @@
 //#define USE_CANFD_INTERFACE_AS_CLASSIC_CAN // Enable this line if you intend to use the CANFD as normal CAN
 //#define SERIAL_LINK_RECEIVER  //Enable this line to receive battery data over RS485 pins from another Lilygo (This LilyGo interfaces with inverter)
 //#define SERIAL_LINK_TRANSMITTER  //Enable this line to send battery data over RS485 pins to another Lilygo (This LilyGo interfaces with battery)
-//#define WIFI
+#define WIFI
 //#define WIFICONFIG  //Enable this line to set a static IP address / gateway /subnet mask for the device. see USER_SETTINGS.cpp for the settings
-//#define WEBSERVER  //Enable this line to enable WiFi, and to run the webserver. See USER_SETTINGS.cpp for the Wifi settings.
+#define WEBSERVER  //Enable this line to enable WiFi, and to run the webserver. See USER_SETTINGS.cpp for the Wifi settings.
 #define WEBSERVER_AUTH_REQUIRED \
   false  //Set this line to true to activate webserver authentication (this line must not be commented). Refer to USER_SETTINGS.cpp for setting the credentials.
 //#define WIFIAP  //Disable this line to permanently disable WIFI AP mode (make sure to hardcode ssid and password of you home wifi network). When enabled WIFI AP can still be disabled by a setting in the future.
@@ -121,9 +122,9 @@
 // Increases battery life. If true will rescale SOC between the configured min/max-percentage
 #define BATTERY_USE_SCALED_SOC true
 // 8000 = 80.0% , Max percentage the battery will charge to (Inverter gets 100% when reached)
-#define BATTERY_MAXPERCENTAGE 8000
+#define BATTERY_MAXPERCENTAGE 9000
 // 2000 = 20.0% , Min percentage the battery will discharge to (Inverter gets 0% when reached)
-#define BATTERY_MINPERCENTAGE 2000
+#define BATTERY_MINPERCENTAGE 1000
 // 500 = 50.0 °C , Max temperature (Will produce a battery overheat event if above)
 #define BATTERY_MAXTEMPERATURE 500
 // -250 = -25.0 °C , Min temperature (Will produce a battery frozen event if below)
